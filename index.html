@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Renna · editor dei pezzi</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Renna · editor dei pezzi</h1>
+      <p class="sub">Trascina i punti, guarda il risultato in 3D, poi genera il PDF con le sagome 1:1 del pezzo da stampare.</p>
+    </div>
+    <div class="actions">
+      <label class="pname" for="pname">Progetto <input id="pname" type="text" maxlength="60" spellcheck="false"></label>
+      <button id="undo" type="button" title="Annulla l'ultima modifica (Ctrl+Z)">Annulla</button>
+      <span class="filebtn">Apri progetto<input id="load" type="file" accept=".json,application/json"></span>
+      <button id="save" type="button">Salva progetto</button>
+      <button id="pdf" type="button" class="primary">PDF di questo pezzo</button>
+    </div>
+  </header>
+  <div class="bar2">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="copy">
+      <label for="copyFrom">Copia la forma da</label><select id="copyFrom"></select>
+      <button id="copyBtn" type="button">Copia</button>
+      <button id="reset" type="button">Forma originale</button>
+    </div>
+  </div>
+  <div id="confirmBox" class="confirm" hidden>
+    <span id="confirmText"></span>
+    <button id="confirmYes" type="button">Sì</button><button id="confirmNo" type="button">No</button>
+  </div>
+  <div id="status" class="status" role="status"></div>
+  <div id="warn" class="warn" hidden></div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="board">
+        <div class="hd"><h2><span class="tag" style="background:var(--wire)"></span><span id="titleA">Di lato</span></h2>
+          <span class="hint">muso a sinistra · y = altezza da terra (cm) · in grigio gli altri pezzi</span></div>
+        <canvas id="cvSide" class="cv-side"></canvas>
+        <div class="selbar" id="selSide"></div>
+      </section>
+      <section class="board">
+        <div class="hd"><h2><span class="tag" style="background:var(--horiz)"></span><span id="titleB">Dall'alto</span></h2>
+          <span class="hint" id="hintB">simmetrico: modifichi la metà superiore, l'altra si specchia</span></div>
+        <canvas id="cvTop" class="cv-top"></canvas>
+        <div class="selbar" id="selTop"></div>
+      </section>
+      <p class="keys">Trascina un punto per spostarlo · <b>doppio clic</b> sulla linea per aggiungere un punto (anche sull'asse blu) ·
+        seleziona un punto e premi <kbd>Canc</kbd> (o il pulsante) per toglierlo · le linee rosse sono gli anelli: trascinale per spostarle lungo l'asse,
+        i due pallini rossi sul profilo sono i <b>punti di contatto</b>: trascinali uno alla volta per inclinare l'anello · la linea blu tratteggiata con i quadratini è l'<b>asse della croce</b>: sposta i quadratini per piegarla.</p>
+    </div>
+
+    <div class="col">
+      <section class="board">
+        <div class="hd"><h2>Vista 3D</h2><span class="hint">trascina per ruotare · in chiaro gli altri pezzi</span></div>
+        <canvas id="cv3d" class="cv-3d"></canvas>
+      </section>
+      <section class="board">
+        <div class="hd"><h2>Punti salvati</h2><span class="hint">prove da cui ripartire</span></div>
+        <form id="snapForm" class="snapform">
+          <input id="snapName" type="text" maxlength="60" placeholder="es. zampe più lunghe" aria-label="Nome del punto">
+          <button type="submit">Salva punto</button>
+        </form>
+        <ul class="snaps" id="snapList"></ul>
+      </section>
+      <section class="board params">
+        <div class="prow" id="rowYh">
+          <span class="lbl">Quota della croce</span>
+          <span><input id="yh" type="number" step="0.5" min="0" max="100"> cm</span>
+          <span class="help">Altezza da terra dell'anello orizzontale (asse dritto).</span>
+        </div>
+        <div class="prow" id="rowZ">
+          <span class="lbl">Distanza dal centro</span>
+          <span><input id="zoff" type="number" step="0.5" min="0" max="20"> cm</span>
+          <span class="help">Quanto il piano della zampa sta verso il suo fianco rispetto al centro della renna.</span>
+        </div>
+        <div class="prow">
+          <span class="lbl">Forma degli anelli</span>
+          <span id="nVal" style="font-family:var(--f-num)"></span>
+          <input id="n" type="range" min="2" max="3.2" step="0.05" style="grid-column:1/-1">
+          <span class="help">A sinistra più ovali, a destra più squadrati.</span>
+        </div>
+        <label class="chk"><input id="snap" type="checkbox" checked> Aggancia i punti al mezzo centimetro</label>
+        <div>
+          <div class="hd"><h2><span class="tag" style="background:var(--ring)"></span>Anelli trasversali</h2>
+            <button id="addRing" type="button">+ Anello</button></div>
+          <div class="rings" id="rings"></div>
+        </div>
+        <div>
+          <div class="hd"><h2>Filo da tagliare</h2></div>
+          <table class="sum" id="sum"></table>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+
+<!-- libreria PDF: copia locale (funziona offline). Nella versione per claude.ai viene caricata da cdnjs. -->
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="src/core.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

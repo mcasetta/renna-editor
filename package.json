@@ -1,0 +1,11 @@
+{
+  "name": "renna-editor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Editor per progettare una renna in fil di ferro e stampare le sagome 1:1",
+  "scripts": {
+    "test": "node test/core.test.mjs",
+    "build": "node tools/build-single.mjs",
+    "start": "node tools/serve.mjs"
+  }
+}
