@@ -1,0 +1,19 @@
+TODO - Renna editor
+===================
+
+Punti fragili emersi nell'analisi iniziale (sessione 1, 2026-10-20):
+
+[ ] 1. Anelli trasversali del corpo troppo larghi per il foglio: A3-A5 ~19 cm su 19,4 cm utili;
+       il bordo sinistro esce ~4 mm dalla griglia (a ~4 mm dal bordo carta). Rischio taglio in stampa.
+       Possibili soluzioni: pagina orizzontale o anello diviso su piu' fogli.
+[ ] 2. Nessun test che verifichi che ogni sagoma stia nell'area stampabile.
+[ ] 3. RC.migrate: un file con un singolo pezzo "testa" (formato vecchio) finisce al posto del corpo.
+[ ] 4. derive: anelli vecchi {s,a} non convertibili diventano un anello finto (p1=[0,0], p2=[0,-1]) senza avviso.
+[ ] 5. Aggiungere ai test i file .json reali dell'utente (es. test/progetti/) per garantire la compatibilita'.
+[ ] 6. planTiles sceglie i fogli solo dai punti campionati: un tratto che taglia l'angolo di un foglio
+       potrebbe non far stampare quel foglio.
+[ ] 7. Etichette SIN./DES. nelle pagine degli anelli trasversali: verificare se sono coerenti con il secondo anello.
+[ ] 8. Controllo visivo dei PDF: manca pdftoppm (poppler) sul PC, Claude non puo' vedere le pagine.
+
+Idee future:
+[ ] Corna, orecchie, coda.

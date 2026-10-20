@@ -1,0 +1,19 @@
+ANALISI - Renna editor
+======================
+
+1. SCOPO
+App per progettare una renna in fil di ferro (~1 m) e stampare sagome 1:1 su A4, su cui piegare il filo a mano.
+Requisito principale: misure esatte e stampe chiare.
+
+2. VINCOLI
+- Si apre con doppio clic su index.html (file://), senza installare niente: niente build, niente ES modules in src/.
+- Nessuna dipendenza npm; jsPDF 2.5.1 in vendor/.
+- I progetti .json salvati con versioni precedenti devono continuare ad aprirsi (RC.migrate / derive).
+
+3. ARCHITETTURA
+- src/core.js: geometria (spline Catmull-Rom, asse, incroci, anelli trasversali a super-ellisse) e PDF. Niente DOM, testabile in Node.
+- src/app.js: interfaccia (viste 2D trascinabili, vista 3D, pannello, undo, punti salvati, salvataggio file).
+- Dettagli del modello dati e del flusso: CLAUDE.md, sezione specifica progetto.
+
+4. DECISIONI
+- 2026-10-20: un unico repository pubblico (renna-editor), cartella docs/ al posto di private/docs/.

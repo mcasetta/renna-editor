@@ -1,0 +1,14 @@
+SESSIONI - Renna editor
+=======================
+
+--- Sessione 1 - 2026-10-20 ---
+Obiettivo: prendere in mano il progetto iniziato su claude.ai.
+Attivita':
+- Letti CLAUDE.md, README.md, src/core.js, src/app.js. npm test: tutto verde.
+- Creato repo git locale con primo commit; .gitattributes per fine riga LF.
+- CLAUDE.md adeguato al template utility/CLAUDE-TEMPLATE.md; creati docs/ (ANALISI, SESSIONI, TODO, NOTE MANUALI).
+Decisioni:
+- Un unico repo pubblico "renna-editor" (nessuna separazione public/private); i doc del template stanno in docs/.
+- Il codice esistente resta con commenti in italiano (eccezione alla regola "codice in inglese").
+Prossimi passi: scegliere da quale punto di docs/TODO.txt partire (proposta: 1 + 2).
+File modificati: CLAUDE.md, .gitattributes, docs/*.
