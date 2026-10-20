@@ -3,17 +3,28 @@ TODO - Renna editor
 
 Punti fragili emersi nell'analisi iniziale (sessione 1, 2026-10-20):
 
-[ ] 1. Anelli trasversali del corpo troppo larghi per il foglio: A3-A5 ~19 cm su 19,4 cm utili;
+[DONE] 1. Anelli trasversali del corpo troppo larghi per il foglio: A3-A5 ~19 cm su 19,4 cm utili;
        il bordo sinistro esce ~4 mm dalla griglia (a ~4 mm dal bordo carta). Rischio taglio in stampa.
-       Possibili soluzioni: pagina orizzontale o anello diviso su piu' fogli.
-[ ] 2. Nessun test che verifichi che ogni sagoma stia nell'area stampabile.
-[ ] 3. RC.migrate: un file con un singolo pezzo "testa" (formato vecchio) finisce al posto del corpo.
-[ ] 4. derive: anelli vecchi {s,a} non convertibili diventano un anello finto (p1=[0,0], p2=[0,-1]) senza avviso.
+       -> Anelli centrati davvero; quelli che non stanno in un foglio verticale vanno su piu' fogli come gli anelli grandi.
+[DONE] 2. Nessun test che verifichi che ogni sagoma stia nell'area stampabile.
+       -> makePdf restituisce `layout`; il test controlla che gli anelli stiano nella griglia e che i tratti
+          fuori dai fogli siano <= 1 cm. Test anche con il corpo ingrandito x1.4.
+[DONE] 3. RC.migrate: un file con un singolo pezzo "testa" (formato vecchio) finisce al posto del corpo.
+       -> Il pezzo va al posto giusto in base al tipo.
+[DONE] 4. derive: anelli vecchi {s,a} non convertibili diventano un anello finto (p1=[0,0], p2=[0,-1]) senza avviso.
+       -> Resta sull'asse dov'era, con avviso "non sono riuscito a convertirlo dal vecchio formato".
 [ ] 5. Aggiungere ai test i file .json reali dell'utente (es. test/progetti/) per garantire la compatibilita'.
-[ ] 6. planTiles sceglie i fogli solo dai punti campionati: un tratto che taglia l'angolo di un foglio
+[DONE] 6. planTiles sceglie i fogli solo dai punti campionati: un tratto che taglia l'angolo di un foglio
        potrebbe non far stampare quel foglio.
-[ ] 7. Etichette SIN./DES. nelle pagine degli anelli trasversali: verificare se sono coerenti con il secondo anello.
-[ ] 8. Controllo visivo dei PDF: manca pdftoppm (poppler) sul PC, Claude non puo' vedere le pagine.
+       -> Curva controllata ogni 2 mm. In piu' un foglio con solo un pezzetto di curva si salta se il buco
+          resta <= 1 cm (GAP), con una nota a pie' di pagina.
+[DONE] 7. Etichette SIN./DES. nelle pagine degli anelli trasversali: verificare se sono coerenti con il secondo anello.
+       -> Ora coerenti: +w = fianco destro (DES.), come nel secondo anello.
+          Nota: la convenzione destra/sinistra di tutta l'app (z positivo = destra) e' speculare rispetto alla
+          vista di lato con il muso a sinistra (che mostra il fianco sinistro). Non cambia nulla nella
+          costruzione: corpo, testa e anelli sono simmetrici; al massimo la posa delle zampe esce specchiata.
+[DONE] 8. Controllo visivo dei PDF: manca pdftoppm (poppler) sul PC, Claude non puo' vedere le pagine.
+       -> tools/anteprima-pdf.mjs: salva una pagina come PNG usando Chrome + pdf.js da cdnjs.
 
 Idee future:
 [ ] Corna, orecchie, coda.

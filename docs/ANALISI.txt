@@ -17,3 +17,6 @@ Requisito principale: misure esatte e stampe chiare.
 
 4. DECISIONI
 - 2026-10-20: un unico repository pubblico (renna-editor), cartella docs/ al posto di private/docs/.
+- 2026-10-20: le sagome sono una guida "a grandi linee", qualche mm di gioco e' accettabile.
+  Si accetta di lasciare fuori dai fogli fino a 1 cm di curva (GAP in core.js) per risparmiare fogli.
+  Anelli trasversali: su una pagina verticale se ci stanno, altrimenti su piu' fogli come gli anelli grandi.

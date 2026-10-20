@@ -188,7 +188,13 @@
     st.rings.forEach((rg) => {
       if (!rg.p1 || !rg.p2) {   // vecchio formato (s, a): converti in due punti di contatto
         const q = ringFromSA(V, ax, s0, rg.s, rg.a);
-        if (q) { rg.p1 = q.p1; rg.p2 = q.p2; } else { rg.p1 = [0, 0]; rg.p2 = [0, -1]; }
+        if (q) { rg.p1 = q.p1; rg.p2 = q.p2; }
+        else {   // non convertibile: lo lascio sull'asse dov'era, da sistemare a mano o togliere
+          const at = axisAt(ax, s0 + Math.max(0, Math.min(S, rg.s || 0))).p;
+          rg.p1 = [+at[0].toFixed(2), +(at[1] + 0.5).toFixed(2)]; rg.p2 = [+at[0].toFixed(2), +(at[1] - 0.5).toFixed(2)];
+          raw.push({ rg, bad: "non sono riuscito a convertirlo dal vecchio formato: trascina i suoi punti sul profilo o toglilo." });
+          delete rg.s; delete rg.a; return;
+        }
         delete rg.s; delete rg.a;
       }
       const q1 = nearestOnCurve(V, rg.p1[0], rg.p1[1]), q2 = nearestOnCurve(V, rg.p2[0], rg.p2[1]);
@@ -281,7 +287,7 @@
       return pr;
     }
     if (o && Array.isArray(o.v) && Array.isArray(o.axis)) {   // un singolo pezzo nuovo formato
-      const pr = defaultProject(); const k = o.type === "zampa" ? (o.key || "AS") : "corpo";
+      const pr = defaultProject(); const k = o.type === "zampa" ? (o.key || "AS") : o.type === "testa" ? "testa" : "corpo";
       pr.pieces[k] = normPiece(o); pr.cur = k; return pr;
     }
     return null;
@@ -293,9 +299,33 @@
               wire: [38, 38, 38], horiz: [26, 89, 204], ring: [209, 31, 31], purple: [128, 38, 166],
               green: [13, 140, 64], faint: [180, 180, 180], light: [255, 179, 179], bend: [220, 120, 0] };
 
+  // punti della curva chiusa a distanza massima `step` (così nessun tratto sfugge al controllo dei fogli)
+  function densify(c, step) {
+    const out = [];
+    for (let i = 1; i < c.length; i++) {
+      const a = c[i - 1], b = c[i], k = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+      for (let j = 0; j < k; j++) out.push([a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k]);
+    }
+    return out;   // senza ripetere il primo punto in fondo
+  }
+  const GAP = 1.0;   // cm di curva che si possono lasciare fuori dai fogli (si raccordano a mano)
+  // tratto scoperto più lungo e totale scoperto, sulla curva chiusa P (len[i] = lunghezza del tratto i→i+1)
+  function gaps(cnt, len) {
+    const n = cnt.length; let i0 = cnt.findIndex(c => c > 0);
+    if (i0 < 0) return { max: 1e9, tot: 1e9 };
+    let max = 0, tot = 0, run = 0;
+    for (let k = 1; k <= n; k++) {
+      const i = (i0 + k) % n;
+      if (cnt[i] === 0) { run += len[(i - 1 + n) % n]; tot += len[(i - 1 + n) % n]; }
+      else if (run) { run += len[(i - 1 + n) % n]; tot += len[(i - 1 + n) % n]; max = Math.max(max, run); run = 0; }
+    }
+    return { max, tot };
+  }
   function planTiles(curve, extra) {
     extra = extra == null ? 0.7 : extra;
-    const xs = curve.map(p => p[0]), ys = curve.map(p => p[1]);
+    const P = densify(curve, 0.2), n = P.length;
+    const len = P.map((p, i) => { const q = P[(i + 1) % n]; return Math.hypot(q[0] - p[0], q[1] - p[1]); });
+    const xs = P.map(p => p[0]), ys = P.map(p => p[1]);
     const mn = [Math.min(...xs) - extra, Math.min(...ys) - extra], mx = [Math.max(...xs) + extra, Math.max(...ys) + extra];
     const bw = mx[0] - mn[0], bh = mx[1] - mn[1];
     let best = null;
@@ -306,16 +336,21 @@
       for (let a = 0; a <= 10; a++) for (let b = 0; b <= 10; b++) {
         const fx = a / 10, fy = b / 10;
         const x0 = mn[0] - fx * (nc * sx + OV - bw), y0 = mn[1] - fy * (nr * sy + OV - bh);
-        const tiles = []; const cov = new Array(curve.length).fill(false);
+        let tiles = []; const cnt = new Array(n).fill(0);
         for (let r = 0; r < nr; r++) for (let col = 0; col < nc; col++) {
-          const tx = x0 + col * sx, ty = y0 + (nr - 1 - r) * sy;
-          let any = false;
-          curve.forEach((p, i) => { if (p[0] >= tx + .3 && p[0] <= tx + uw - .3 && p[1] >= ty + .3 && p[1] <= ty + uh - .3) { any = true; cov[i] = true; } });
-          if (any) tiles.push({ r, col, x0: tx, y0: ty });
+          const tx = x0 + col * sx, ty = y0 + (nr - 1 - r) * sy, idx = [];
+          P.forEach((p, i) => { if (p[0] >= tx + .3 && p[0] <= tx + uw - .3 && p[1] >= ty + .3 && p[1] <= ty + uh - .3) idx.push(i); });
+          if (idx.length) { idx.forEach(i => cnt[i]++); tiles.push({ r, col, x0: tx, y0: ty, idx }); }
         }
-        if (!cov.every(Boolean)) continue;
-        const score = tiles.length * 10 + Math.abs(fx - .5) + Math.abs(fy - .5);
-        if (!best || score < best.score) best = { score, land, uw, uh, tiles };
+        if (gaps(cnt, len).max > 1e-6) continue;
+        // togli i fogli con solo un pezzetto di curva, se il buco che lasciano resta sotto GAP
+        tiles.slice().sort((p, q) => p.idx.length - q.idx.length).forEach(t => {
+          t.idx.forEach(i => cnt[i]--);
+          if (gaps(cnt, len).max <= GAP) tiles = tiles.filter(q => q !== t); else t.idx.forEach(i => cnt[i]++);
+        });
+        const g = gaps(cnt, len);
+        const score = tiles.length * 10 + g.tot * 2 + Math.abs(fx - .5) + Math.abs(fy - .5);
+        if (!best || score < best.score) best = { score, land, uw, uh, tiles: tiles.map(({ idx, ...t }) => t), uncovered: g.tot, maxGap: g.max };
       }
     }
     return best;
@@ -380,6 +415,14 @@
       stroke("green"); doc.setLineWidth(0.55); doc.line(X(s0[0]), Y(s0[1]), X(s1[0]), Y(s1[1]));
       for (const g of [1, -1]) { const e = [s1[0] - dx * .8 + nx * .45 * g, s1[1] - dy * .8 + ny * .45 * g]; doc.line(X(s1[0]), Y(s1[1]), X(e[0]), Y(e[1])); }
     }
+    // 4 punti d'incrocio di un anello trasversale; +w è il fianco destro, come nel secondo anello
+    function ringMarkers(r) {
+      marker(0, r.ut, "purple", r.lab[0], 2, 2, true);
+      marker(0, -r.ub, "purple", r.lab[1], 2, 3, true);
+      marker(r.w, 0, "purple", "DES.", -8.5, 2.4, true);
+      marker(-r.w, 0, "purple", "SIN.", 1.6, 2.4, true);
+    }
+    const layout = [];   // dove finiscono le sagome (per i test)
     function tiledPiece(name, sub, curve, wireKey, deco, lx, ly) {
       const plan = planTiles(curve);
       const keys = new Set(plan.tiles.map(t => t.r + "," + t.col));
@@ -411,19 +454,27 @@
         stroke(wireKey); doc.setLineWidth(0.2);
         const d = []; for (let k = 1; k < curve.length; k++) d.push([(curve[k][0] - curve[k - 1][0]) * sc, -(curve[k][1] - curve[k - 1][1]) * sc]);
         doc.lines(d, mx0 + (curve[0][0] - gx0) * sc, myb - (curve[0][1] - gy0) * sc, [1, 1], "S", false);
+        if (plan.uncovered > 0.05) {
+          font(7, false); textc("ink");
+          doc.text(`Nota: ${plan.uncovered.toFixed(1)} cm di curva cadono fuori dai fogli (per risparmiare un foglio): raccordali a mano.`, PM, PH - 3);
+        }
         footer();
       });
+      layout.push({ name, kind: "fogli", sheets: plan.tiles.length, uncovered: plan.uncovered, maxGap: plan.maxGap });
       return plan.tiles.length;
     }
 
     const R = D.rings;
     const pv = planTiles(D.V).tiles.length, ph = planTiles(D.H).tiles.length;
     const P_V = 2, P_H = P_V + pv, P_R = P_H + ph;
-    const ringPages = [];
+    const ringPages = [], UW = 19.4, UH = 26.8, UHh = 26.4;
+    // gli anelli che non stanno in un foglio verticale vanno su più fogli, come gli anelli grandi
+    const fits = (r) => 2 * r.w + 0.1 <= UW && r.ut + r.ub + 3.6 <= UHh;
+    const big = R.filter(r => !fits(r));
     { // impaginazione a scaffali: righe di anelli, più righe per pagina
-      const UW = 19.4, UHh = 26.4; let cur = [], x = 0, yrow = 0, rowH = 0;
-      R.forEach(r => {
-        const w = 2 * r.w + 3.2, h = r.ut + r.ub + 3.6;
+      let cur = [], x = 0, yrow = 0, rowH = 0;
+      R.filter(fits).forEach(r => {
+        const w = Math.min(UW, 2 * r.w + 3.2), h = r.ut + r.ub + 3.6;
         if (x + w > UW && x > 0) { yrow += rowH; x = 0; rowH = 0; }
         if (yrow + h > UHh && cur.length) { ringPages.push(cur); cur = []; x = 0; yrow = 0; rowH = 0; }
         r.box = { x, y: yrow, w, h }; cur.push(r); x += w; rowH = Math.max(rowH, h);
@@ -431,6 +482,7 @@
       if (cur.length) ringPages.push(cur);
     }
     ringPages.forEach((pg, i) => pg.forEach(r => { r.page = P_R + i; }));
+    { let pg = P_R + ringPages.length; big.forEach(r => { r.page = pg; pg += planTiles(r.curve).tiles.length; }); }
 
     // ---------------- pagina 1: riepilogo
     newPage(false);
@@ -538,15 +590,20 @@
     ringPages.forEach(pg => {
       newPage(false);
       header(`${title} - anelli trasversali ${pg.map(r => r.n).join(", ")}`, "Ogni anello nel suo piano, scala 1:1 - linee tratteggiate = assi della croce");
-      const uw = 19.4, uh = 26.8;
+      const uw = UW, uh = UH;
       T = { x0: 0, y0: 0, ox: PM, oy: PM + PHEAD + uh * MM };
       grid(0, 0, uw, uh, null, "");
       // centra orizzontalmente ogni riga
       const rows = {}; pg.forEach(r => { (rows[r.box.y] = rows[r.box.y] || []).push(r); });
-      Object.values(rows).forEach(row => { const tw = row.reduce((a, r) => a + r.box.w, 0); const off = Math.floor((uw - tw) / 2); row.forEach(r => { r.box.x += off; }); });
+      Object.values(rows).forEach(row => { const tw = row.reduce((a, r) => a + r.box.w, 0); const off = Math.max(0, (uw - tw) / 2); row.forEach(r => { r.box.x += off; }); });
       pg.forEach(r => {
-        const cz = r.box.x + r.w + 1.6, cy = uh - 0.4 - r.box.y - 2.0 - r.ut;   // centro della croce in cm di pagina
-        T = { x0: -Math.round(cz), y0: -Math.round(cy), ox: PM, oy: PM + PHEAD + uh * MM };
+        const cz = r.box.x + r.box.w / 2, cy = uh - 0.4 - r.box.y - 2.0 - r.ut;   // centro della croce in cm di pagina
+        // il centro va su una riga della griglia, se così l'anello resta dentro il foglio
+        const rz = Math.round(cz), ry = Math.round(cy);
+        const zc = rz - r.w >= 0.1 && rz + r.w <= uw - 0.1 ? rz : cz, yc = ry - r.ub >= 0.1 && ry + r.ut + 2.0 <= uh ? ry : cy;
+        T = { x0: -zc, y0: -yc, ox: PM, oy: PM + PHEAD + uh * MM };
+        layout.push({ name: r.n, kind: "anello", page: r.page, box: [X(-r.w), Y(r.ut), X(r.w), Y(-r.ub)],
+                      area: [PM, PM + PHEAD, PM + uw * MM, PM + PHEAD + uh * MM] });
         font(10, true); textc("ink"); doc.text(`${r.n}  (a s${r.s.toFixed(1)}${r.a ? `, inclinato ${r.a.toFixed(0)}\u00b0` : ""})`, X(0), Y(r.ut + 1.6), { align: "center" });
         font(7.5, false); doc.text(`filo ${r.L.toFixed(0)} + 5 cm - ${(r.ut + r.ub).toFixed(1)} x ${(2 * r.w).toFixed(1)} cm`, X(0), Y(r.ut + 1.0), { align: "center" });
         doc.setLineDashPattern([1.4, 1], 0); doc.setLineWidth(0.35);
@@ -556,15 +613,24 @@
         stroke("ring"); doc.setLineWidth(1.4); doc.setLineCap("round"); doc.setLineJoin("round");
         poly(r.curve); doc.setLineCap("butt");
         ticks(r.curve); start(r.curve, -10, -5.5);
-        marker(0, r.ut, "purple", r.lab[0], 2, 2, true);
-        marker(0, -r.ub, "purple", r.lab[1], 2, 3, true);
-        marker(r.w, 0, "purple", "SIN.", -8.5, 2.4, true);
-        marker(-r.w, 0, "purple", "DES.", 1.6, 2.4, true);
+        ringMarkers(r);
       });
       stroke("faint"); doc.setLineWidth(0.15); doc.rect(PM, PM + PHEAD, uw * MM, uh * MM, "S");
       footer();
     });
-    return { doc, pages: page - 1, D };
+    big.forEach(r => tiledPiece(`Anello trasversale ${r.n}`,
+      `${title} - anello ${r.n} a s${r.s.toFixed(1)}${r.a ? `, inclinato ${r.a.toFixed(0)}°` : ""} - 1:1 - filo ${r.L.toFixed(0)} + 5 cm - ${(r.ut + r.ub).toFixed(1)} x ${(2 * r.w).toFixed(1)} cm`,
+      r.curve, "ring", (layer) => {
+        if (layer === "under") {
+          doc.setLineDashPattern([1.4, 1], 0); doc.setLineWidth(0.35);
+          stroke("wire"); doc.line(X(0), Y(-r.ub - 0.6), X(0), Y(r.ut + 0.6));
+          stroke("horiz"); doc.line(X(-r.w - 0.6), Y(0), X(r.w + 0.6), Y(0));
+          doc.setLineDashPattern([], 0);
+          return;
+        }
+        ringMarkers(r);
+      }, "", ""));
+    return { doc, pages: page - 1, D, layout };
   }
 
   root.RennaCore = { TYPES, ORDER, catmull, length, cut, derive, makePdf, planTiles, normPiece, defaultProject, migrate,

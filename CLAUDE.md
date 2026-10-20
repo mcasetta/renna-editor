@@ -393,9 +393,12 @@ I punti salvati sono in localStorage `renna-punti-v1` come `{id, name, t, data: 
 ### Flusso
 - `RC.derive(pezzo)` → tutto il calcolato: curve `V` (profilo) e `H` (secondo anello, coordinate s,z), incroci `c0/c1`,
   pieghe dell'asse `bends`, anelli con misure (`ut`, `ub`, `w`, `curve`, `L`), lunghezze, avvisi (`warn`), `ok`.
-- `RC.makePdf(jsPDF, pezzo)` → PDF: riepilogo, anello laterale e secondo anello su più fogli (`planTiles`), pagine degli anelli impaginate a scaffali.
+- `RC.makePdf(jsPDF, pezzo)` → `{doc, pages, D, layout}`: riepilogo, anello laterale e secondo anello su più fogli (`planTiles`),
+  anelli trasversali impaginati a scaffali (quelli che non stanno in un foglio verticale vanno su più fogli).
+  `planTiles` può saltare un foglio se lascia fuori al massimo `GAP` = 1 cm di curva. `layout` serve ai test.
 - `src/app.js`: classe `View` generica (fit, griglia, hit-test, drag con `points()` e `handles()`), viste `side` e `top`, vista 3D su canvas 2D con proiezione e ordinamento per profondità, pannello, undo (`hist`), punti salvati, salvataggio file.
 - Salvataggio file: dentro claude.ai usa la capability `downloads` (`window.claude.use("downloads")`); in locale fa un normale download con `<a download>`.
 
 ### Dopo una modifica
-Esegui `npm test`; se cambi il PDF apri qualche file in `dist/test/` e controlla che la barra di controllo sia 5 cm e che le etichette non si sovrappongano.
+Esegui `npm test`; se cambi il PDF guarda qualche pagina in `dist/test/` e controlla che la barra di controllo sia 5 cm e che le etichette non si sovrappongano.
+Per vedere una pagina come immagine: `node tools/anteprima-pdf.mjs dist/test/corpo.pdf 11 <uscita.png>` (Chrome + pdf.js da cdnjs, serve internet).

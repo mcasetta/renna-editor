@@ -12,3 +12,13 @@ Decisioni:
 - Il codice esistente resta con commenti in italiano (eccezione alla regola "codice in inglese").
 Prossimi passi: scegliere da quale punto di docs/TODO.txt partire (proposta: 1 + 2).
 File modificati: CLAUDE.md, .gitattributes, docs/*.
+
+Sessione 1 (continua) - correzioni:
+- core.js: planTiles controlla la curva ogni 2 mm e salta i fogli con solo un pezzetto di curva (buchi <= 1 cm, nota sul foglio).
+- core.js: anelli trasversali sempre dentro il foglio; quelli troppo grandi su piu' fogli; etichette SIN./DES. coerenti.
+- core.js: migrate di un pezzo testa singolo; anello vecchio non convertibile con avviso chiaro.
+- test: controllo posizione sagome, corpo ingrandito x1.4, casi di migrazione.
+- tools/anteprima-pdf.mjs per vedere le pagine dei PDF come immagini.
+Decisioni: tolleranza accettata dall'utente (sagome "a grandi linee"): GAP = 1 cm di curva fuori dai fogli; margine anelli 0,5 mm dal bordo griglia.
+Prossimi passi: aggiungere ai test i .json reali dell'utente (TODO 5).
+File modificati: src/core.js, test/core.test.mjs, tools/anteprima-pdf.mjs, CLAUDE.md, docs/*.
