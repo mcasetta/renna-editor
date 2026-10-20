@@ -306,7 +306,7 @@ Vedi `docs/TODO.txt`.
 Un **unico repository pubblico**, nella root del progetto (`renna-editor/` è il repo git).
 Niente separazione `public/` / `private/`. Le regole 4–8 del template che parlano di
 `private/docs/…` valgono qui per `docs/…`.
-- Remote: `git@github.com:mcasetta/-renna-editor.git`
+- Remote: `git@github.com:mcasetta/renna-editor.git`
 
 ### Struttura Cartelle
 ```
