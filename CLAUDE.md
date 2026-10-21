@@ -293,7 +293,7 @@ Editor funzionante (6 pezzi: corpo, collo e testa, 4 zampe) portato da claude.ai
 Prossima fase: correzione dei punti fragili emersi nell'analisi iniziale (vedi `docs/TODO.txt`).
 
 ### Ultimo Aggiornamento
-2026-10-20 — sessione 1
+2026-10-21 — sessione 2 (zoom, riquadri ingranditi, sposta pezzo, conferma punti salvati)
 
 ### Cosa è stato fatto
 - Lettura del codice, `npm test` verde, primo commit git locale.

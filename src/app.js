@@ -30,7 +30,9 @@
   // ------------------------------------------------ vista 2D generica
   function View(canvas, opts) {
     this.c = canvas; this.ctx = canvas.getContext("2d"); this.o = opts; this.sel = null; this.drag = null;
+    this.zoom = 1; this.pan = [0, 0]; this.zb = null;   // zb: riquadro fermato quando si zooma (così la vista non salta mentre modifichi)
     const v = this;
+    canvas.addEventListener("wheel", (e) => { e.preventDefault(); const [, , px, py] = v.w2(e); v.zoomAt(px, py, wheelF(e)); }, { passive: false });
     new ResizeObserver(() => v.resize()).observe(canvas);
     canvas.addEventListener("pointerdown", (e) => v.down(e));
     canvas.addEventListener("pointermove", (e) => v.move(e));
@@ -45,10 +47,25 @@
     this.dpr = dpr; this.draw();
   };
   View.prototype.fit = function () {
-    const b = this.o.bounds(); const W = this.c.width, H = this.c.height, pad = 16 * this.dpr;
-    const s = Math.min((W - 2 * pad) / (b[2] - b[0]), (H - 2 * pad) / (b[3] - b[1]));
-    this.s = s; this.ox = (W - s * (b[2] - b[0])) / 2 - s * b[0]; this.oy = (H + s * (b[3] - b[1])) / 2 + s * b[1];
+    const b = this.zb || this.o.bounds(); const W = this.c.width, H = this.c.height, pad = 16 * this.dpr;
+    const s = Math.min((W - 2 * pad) / (b[2] - b[0]), (H - 2 * pad) / (b[3] - b[1])) * this.zoom;
+    const cx = (b[0] + b[2]) / 2 + this.pan[0], cy = (b[1] + b[3]) / 2 + this.pan[1];
+    this.s = s; this.ox = W / 2 - s * cx; this.oy = H / 2 + s * cy;
   };
+  View.prototype.zoomed = function () { return this.zoom !== 1 || this.pan[0] !== 0 || this.pan[1] !== 0; };
+  // zona da disegnare (griglia, scritte): il riquadro del pezzo, oppure quello che si vede quando hai zoomato
+  View.prototype.area = function (b) {
+    return this.zoomed() ? [-this.ox / this.s, (this.oy - this.c.height) / this.s, (this.c.width - this.ox) / this.s, this.oy / this.s] : b;
+  };
+  // zoom con il punto (px, py) del canvas che resta fermo sotto il mouse
+  View.prototype.zoomAt = function (px, py, f) {
+    if (!this.zb) this.zb = this.o.bounds();
+    this.fit(); const wx = (px - this.ox) / this.s, wy = (this.oy - py) / this.s;
+    this.zoom = Math.max(0.5, Math.min(15, this.zoom * f)); this.fit();
+    this.pan[0] += wx - (px - this.ox) / this.s; this.pan[1] += wy - (this.oy - py) / this.s;
+    this.draw();
+  };
+  View.prototype.reset = function () { this.zoom = 1; this.pan = [0, 0]; this.zb = null; this.draw(); };
   View.prototype.X = function (x) { return this.ox + x * this.s; };
   View.prototype.Y = function (y) { return this.oy - y * this.s; };
   View.prototype.w2 = function (e) { const r = this.c.getBoundingClientRect(); const px = (e.clientX - r.left) * this.dpr, py = (e.clientY - r.top) * this.dpr;
@@ -69,20 +86,36 @@
     return null;
   };
   View.prototype.down = function (e) {
+    if (e.button === 2) return;   // tasto destro: ci pensa il menu contestuale (toglie il punto)
+    const g = this.o.grab && this.o.grab(e, this);
+    if (g) { this.pending = true; this.drag = { kind: "g", g }; this.c.setPointerCapture(e.pointerId); return; }
     const h = this.hit(e);
-    if (!h) { this.sel = null; this.o.onSel(null); this.draw(); return; }
+    if (!h) {   // punto vuoto: deseleziona, e trascinando sposti la vista
+      this.panning = [e.clientX, e.clientY, this.pan[0], this.pan[1], false]; this.c.setPointerCapture(e.pointerId);
+      this.sel = null; this.o.onSel(null); this.draw(); return;
+    }
     this.pending = true; this.drag = h; this.c.setPointerCapture(e.pointerId);
     if (h.kind === "pt") { this.sel = h.pt; this.o.onSel(h.pt); }
     this.draw();
   };
   View.prototype.move = function (e) {
-    if (!this.drag) { const h = this.hit(e); this.c.style.cursor = h ? (h.kind === "h" ? h.h.cursor : "grab") : "default"; return; }
+    if (this.panning) {
+      const p = this.panning, dx = e.clientX - p[0], dy = e.clientY - p[1];
+      if (!p[4] && Math.hypot(dx, dy) < 3) return;
+      p[4] = true; if (!this.zb) this.zb = this.o.bounds();
+      this.pan = [p[2] - dx * this.dpr / this.s, p[3] + dy * this.dpr / this.s]; this.draw(); return;
+    }
+    if (!this.drag) {
+      if (this.o.grab && this.o.grab(e, this)) { this.c.style.cursor = "move"; return; }
+      const h = this.hit(e); this.c.style.cursor = h ? (h.kind === "h" ? h.h.cursor : "grab") : "default"; return;
+    }
     if (this.pending) { pushHist(); this.pending = false; }
     const [x, y] = this.w2(e);
-    if (this.drag.kind === "pt") this.o.movePt(this.drag.pt, snap(x), snap(y)); else this.drag.h.move(snap(x), snap(y), [x, y]);
+    if (this.drag.kind === "g") this.drag.g.move(x, y);
+    else if (this.drag.kind === "pt") this.o.movePt(this.drag.pt, snap(x), snap(y)); else this.drag.h.move(snap(x), snap(y), [x, y]);
     changed();
   };
-  View.prototype.up = function () { if (this.drag) { this.drag = null; this.o.onSel(this.sel); } };
+  View.prototype.up = function () { this.panning = null; if (this.drag) { const g = this.drag.kind === "g"; this.drag = null; if (!g) this.o.onSel(this.sel); } };
   View.prototype.dbl = function (e) { const [x, y] = this.w2(e); const pt = this.o.insert(snap(x), snap(y)); if (pt) { this.sel = pt; this.o.onSel(pt); } };
   View.prototype.isSel = function (kind, i) { return this.sel && this.sel.kind === kind && this.sel.i === i; };
   View.prototype.grid = function (b, C) {
@@ -91,8 +124,9 @@
     for (let g = x0; g <= x1; g++) { ctx.strokeStyle = g % 5 ? C.grid : C.grid5; ctx.beginPath(); ctx.moveTo(this.X(g), this.Y(y0)); ctx.lineTo(this.X(g), this.Y(y1)); ctx.stroke(); }
     for (let g = y0; g <= y1; g++) { ctx.strokeStyle = g % 5 ? C.grid : C.grid5; ctx.beginPath(); ctx.moveTo(this.X(x0), this.Y(g)); ctx.lineTo(this.X(x1), this.Y(g)); ctx.stroke(); }
     ctx.fillStyle = C.muted; ctx.font = `${10 * this.dpr}px IBM Plex Mono, monospace`;
-    for (let g = Math.ceil(x0 / 10) * 10; g <= x1; g += 10) ctx.fillText(String(g), this.X(g) + 2 * this.dpr, this.Y(y0) - 3 * this.dpr);
-    for (let g = Math.ceil(y0 / 10) * 10; g <= y1; g += 10) ctx.fillText(String(g), this.X(x0) + 2 * this.dpr, this.Y(g) - 3 * this.dpr);
+    const lx = Math.max(this.X(x0), 0), ly = Math.min(this.Y(y0), this.c.height);   // numeri sempre dentro il canvas anche con lo zoom
+    for (let g = Math.ceil(x0 / 10) * 10; g <= x1; g += 10) ctx.fillText(String(g), this.X(g) + 2 * this.dpr, ly - 3 * this.dpr);
+    for (let g = Math.ceil(y0 / 10) * 10; g <= y1; g += 10) ctx.fillText(String(g), lx + 2 * this.dpr, this.Y(g) - 3 * this.dpr);
   };
   View.prototype.path = function (c, color, w, dash, alpha) {
     const ctx = this.ctx; ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.strokeStyle = color; ctx.lineWidth = w * this.dpr;
@@ -127,6 +161,22 @@
     const t = Math.max(0, Math.min(1, ((px - ax_) * dx + (py - ay) * dy) / L));
     return Math.hypot(ax_ + t * dx - px, ay + t * dy - py) < tol * v.dpr;
   }
+  const wheelF = (e) => Math.exp(-e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1) * 0.0015);
+  function inPoly(P, x, y) {
+    let inside = false;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const a = P[i], b = P[j];
+      if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
+    }
+    return inside;
+  }
+  // sposta tutto il pezzo (profilo, asse, anelli) di dx, dy rispetto alla copia o; il secondo anello (s, w) non cambia
+  function shiftPiece(pc, o, dx, dy) {
+    const sh = (p) => [+(p[0] + dx).toFixed(2), +(p[1] + dy).toFixed(2)];
+    pc.v = o.v.map(sh); pc.axis = o.axis.map(sh);
+    pc.rings = o.rings.map(r => (r && r.p1 && r.p2) ? Object.assign({}, r, { p1: sh(r.p1), p2: sh(r.p2) }) : r);
+  }
+  let moveMode = false;
   function dring(rg) { const r = D.ok && D.ringOf ? D.ringOf(rg) : null; return r && !r.bad ? r : null; }
   function setSA(rg, s, a) { const q = RC.ringFromSA(D.V, D.ax, D.s0, s, a); if (q) { rg.p1 = q.p1; rg.p2 = q.p2; } }
   const bboxV = () => {
@@ -141,6 +191,20 @@
     points: () => st.v.map((p, i) => ({ kind: "v", i, p })).concat(st.axis.map((p, i) => ({ kind: "axis", i, p }))),
     onSel: (pt) => renderSel("side", pt),
     movePt: (pt, x, y) => { (pt.kind === "v" ? st.v : st.axis)[pt.i] = [x, y]; },
+    // "Sposta pezzo" (o Maiusc): si prende il pezzo sotto il mouse, prima quello attivo poi quelli grigi
+    grab: (e, v) => {
+      if (!moveMode && !e.shiftKey) return null;
+      const [x0, y0] = v.w2(e);
+      const k = [proj.cur].concat(RC.ORDER.filter(q => q !== proj.cur)).find(q => { const d = q === proj.cur ? D : others[q]; return d && d.V && inPoly(d.V, x0, y0); });
+      if (!k) return null;
+      const pc = proj.pieces[k]; let o = null;
+      return { move: (x, y) => {
+        if (!o) o = clone(pc);
+        const dx = snap(x - x0), dy = snap(y - y0); shiftPiece(pc, o, dx, dy);
+        if (k !== proj.cur) others[k] = RC.derive(pc);
+        $("selSide").textContent = `${pc.name}: spostato di ${dx.toFixed(1)} cm in orizzontale e ${dy.toFixed(1)} cm in verticale.`;
+      } };
+    },
     insert: (x, y) => {
       const rv = nearestSeg(st.v, x, y, true), ra = nearestSeg(st.axis, x, y, false);
       if (Math.min(rv.d, ra.d) > 3) return null;
@@ -176,7 +240,7 @@
       return hs;
     },
     draw: (v, C) => {
-      const b = bboxV(); v.grid(b, C);
+      const b = v.area(bboxV()); v.grid(b, C);
       const ctx = v.ctx; ctx.fillStyle = C.muted; ctx.font = `500 ${10 * v.dpr}px Archivo, sans-serif`;
       ctx.fillText("◀ muso", v.X(b[0]) + 30 * v.dpr, v.Y(b[3]) + 14 * v.dpr);
       if (b[1] < 0) v.path([[b[0], 0], [b[2], 0]], C.muted, 1, [2, 3]);
@@ -215,7 +279,7 @@
     handles: () => st.rings.map((rg) => { const r = dring(rg); return { cursor: "ew-resize", test: (px, py, v) => !!r && Math.abs(px - v.X(r.s)) < 6 * v.dpr && !v.near(px, py),
       move: (x) => { if (r) setSA(rg, Math.max(0.5, Math.min((D.S || 50) - 0.5, x)), r.a); } }; }),
     draw: (v, C) => {
-      const b = bboxT(); v.grid(b, C);
+      const b = v.area(bboxT()); v.grid(b, C);
       const ctx = v.ctx; ctx.fillStyle = C.muted; ctx.font = `500 ${10 * v.dpr}px Archivo, sans-serif`;
       ctx.fillText("fianco destro", v.X(b[0]) + 30 * v.dpr, v.Y(b[3]) + 14 * v.dpr);
       ctx.fillText("fianco sinistro", v.X(b[0]) + 30 * v.dpr, v.Y(b[1]) - 6 * v.dpr);
@@ -235,10 +299,28 @@
   // ------------------------------------------------ vista 3D
   const c3 = $("cv3d"), x3 = c3.getContext("2d"); let yaw = -0.75, pitch = 0.32, drag3 = null;
   new ResizeObserver(() => { const r = c3.getBoundingClientRect(), d = window.devicePixelRatio || 1; c3.width = Math.round(r.width * d); c3.height = Math.round(r.height * d); draw3d(); }).observe(c3);
-  c3.addEventListener("pointerdown", (e) => { drag3 = [e.clientX, e.clientY, yaw, pitch]; c3.setPointerCapture(e.pointerId); c3.style.cursor = "grabbing"; });
-  c3.addEventListener("pointermove", (e) => { if (!drag3) return; yaw = drag3[2] + (e.clientX - drag3[0]) * 0.01; pitch = Math.max(-1.4, Math.min(1.4, drag3[3] + (e.clientY - drag3[1]) * 0.01)); draw3d(); });
+  let zoom3 = 1, pan3 = [0, 0];   // pan3 in pixel del canvas
+  const base3 = () => Math.min(c3.width / 86, c3.height / 80);
+  // drag3: [x, y, yaw, pitch, panX, panY, sposta la vista?]
+  c3.addEventListener("pointerdown", (e) => { drag3 = [e.clientX, e.clientY, yaw, pitch, pan3[0], pan3[1], e.shiftKey || e.button !== 0]; c3.setPointerCapture(e.pointerId); c3.style.cursor = drag3[6] ? "move" : "grabbing"; });
+  c3.addEventListener("pointermove", (e) => {
+    if (!drag3) return; const dx = e.clientX - drag3[0], dy = e.clientY - drag3[1];
+    if (drag3[6]) { const d = window.devicePixelRatio || 1; pan3 = [drag3[4] + dx * d, drag3[5] + dy * d]; }
+    else { yaw = drag3[2] + dx * 0.01; pitch = Math.max(-1.4, Math.min(1.4, drag3[3] + dy * 0.01)); }
+    draw3d();
+  });
   const end3 = () => { drag3 = null; c3.style.cursor = "grab"; };
   c3.addEventListener("pointerup", end3); c3.addEventListener("pointercancel", end3);
+  c3.addEventListener("contextmenu", (e) => e.preventDefault());
+  function zoom3At(px, py, f) {
+    const W = c3.width, H = c3.height, s0 = base3() * zoom3, qx = (px - W / 2 - pan3[0]) / s0, qy = (py - H / 2 - pan3[1]) / s0;
+    zoom3 = Math.max(0.4, Math.min(15, zoom3 * f)); const s1 = base3() * zoom3;
+    pan3 = [px - W / 2 - qx * s1, py - H / 2 - qy * s1]; draw3d();
+  }
+  c3.addEventListener("wheel", (e) => {
+    e.preventDefault(); const r = c3.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    zoom3At((e.clientX - r.left) * d, (e.clientY - r.top) * d, wheelF(e));
+  }, { passive: false });
   function pieceLines(P, d, pc, color, w, alpha, out) {
     if (!d.ok) { const z = pc.zoff; for (let i = 1; i < d.V.length; i++) out.push(seg(P, [d.V[i - 1][0], d.V[i - 1][1], z], [d.V[i][0], d.V[i][1], z], color.wire, w, alpha)); return; }
     const z0 = pc.zoff;
@@ -253,7 +335,7 @@
     x3.clearRect(0, 0, W, H);
     const cx = 44, cy = 42, cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
     const P = (x, y, z) => { x -= cx; y -= cy; z = -z; const X = x * cyw - z * syw, Z = x * syw + z * cyw; return [X, y * cp - Z * sp, y * sp + Z * cp]; };
-    const sc = Math.min(W / 86, H / 80), S = (p) => [W / 2 + p[0] * sc, H / 2 - p[1] * sc];
+    const sc = base3() * zoom3, S = (p) => [W / 2 + pan3[0] + p[0] * sc, H / 2 + pan3[1] - p[1] * sc];
     // terreno
     x3.strokeStyle = C.grid5; x3.lineWidth = dpr;
     for (let g = -40; g <= 40; g += 10) { const a = S(P(cx + g, 0, -20)), b = S(P(cx + g, 0, 20)); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke(); }
@@ -307,6 +389,7 @@
     $("cvTop").style.aspectRatio = st.type === "testa" ? "16 / 5" : "";
   }
   function selectPiece(k) {
+    if (k !== proj.cur) { side.zoom = top.zoom = 1; side.pan = [0, 0]; top.pan = [0, 0]; side.zb = top.zb = null; }
     proj.cur = k; st = proj.pieces[k]; side.sel = top.sel = null;
     D = RC.derive(st); derOthers(); persist(); renderTabs(); renderPanel(); renderSel("side", null);
   }
@@ -365,16 +448,46 @@
   };
   function undo() { if (!hist.length) return; proj = JSON.parse(hist.pop()); st = proj.pieces[proj.cur]; side.sel = top.sel = null; D = RC.derive(st); derOthers(); persist(); $("pname").value = proj.name; renderTabs(); renderPanel(); renderSel("side", null); }
   $("undo").onclick = undo;
+  // ------------------------------------------------ zoom e riquadri ingranditi
+  function setMax(sec) {
+    document.querySelectorAll(".board.max").forEach(b => { if (b !== sec) b.classList.remove("max"); });
+    if (sec) sec.classList.toggle("max");
+    const on = !!document.querySelector(".board.max");
+    document.body.classList.toggle("maxed", on);
+    document.querySelectorAll('.tools [data-act="max"]').forEach(b => {
+      const m = b.closest(".board").classList.contains("max"); b.textContent = m ? "✕" : "⤢";
+      b.title = m ? "Torna alla pagina (Esc)" : "Ingrandisci il riquadro (Esc per tornare)";
+    });
+  }
+  document.querySelectorAll(".tools").forEach(tb => tb.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-act]"); if (!b) return;
+    const which = tb.dataset.view, act = b.dataset.act, v = which === "side" ? side : which === "top" ? top : null;
+    const W = v ? v.c.width : c3.width, H = v ? v.c.height : c3.height;
+    if (act === "max") setMax(tb.closest(".board"));
+    else if (act === "fit") { if (v) v.reset(); else { zoom3 = 1; pan3 = [0, 0]; draw3d(); } }
+    else { const f = act === "in" ? 1.3 : 1 / 1.3; if (v) v.zoomAt(W / 2, H / 2, f); else zoom3At(W / 2, H / 2, f); }
+  }));
+  $("moveBtn").onclick = () => {
+    moveMode = !moveMode; $("moveBtn").setAttribute("aria-pressed", String(moveMode));
+    $("selSide").textContent = moveMode ? "Trascina un pezzo (anche uno grigio) per spostarlo tutto intero. Ripremi «Sposta pezzo» per tornare a modificare i punti." : "Nessun punto selezionato.";
+  };
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && document.querySelector(".board.max")) { setMax(null); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
     if ((e.key === "Delete" || e.key === "Backspace") && !/INPUT|SELECT/.test(document.activeElement.tagName)) {
       if (side.sel) side.o.del(side.sel); else if (top.sel) top.o.del(top.sel);
     }
   });
+  // la domanda Sì/No compare vicino al pulsante premuto (near), altrimenti in cima alla pagina
   let pendingConfirm = null;
-  function ask(text, fn) { $("confirmText").textContent = text; $("confirmBox").hidden = false; pendingConfirm = fn; }
-  $("confirmNo").onclick = () => { $("confirmBox").hidden = true; pendingConfirm = null; };
-  $("confirmYes").onclick = () => { $("confirmBox").hidden = true; const f = pendingConfirm; pendingConfirm = null; if (f) f(); };
+  const cbox = $("confirmBox"), cbHome = cbox.parentNode, cbNext = cbox.nextSibling;
+  function ask(text, fn, near) {
+    $("confirmText").textContent = text; (near || cbHome).insertBefore(cbox, near ? null : cbNext);
+    cbox.hidden = false; pendingConfirm = fn; cbox.scrollIntoView({ block: "nearest" });
+  }
+  function closeAsk() { cbox.hidden = true; pendingConfirm = null; cbHome.insertBefore(cbox, cbNext); }
+  $("confirmNo").onclick = closeAsk;
+  $("confirmYes").onclick = () => { const f = pendingConfirm; closeAsk(); if (f) f(); };
   $("reset").onclick = () => ask(`Riportare «${st.name}» alla forma originale? (puoi ancora usare Annulla)`, () => {
     pushHist(); proj.pieces[proj.cur] = clone(DEF.pieces[proj.cur]); selectPiece(proj.cur); status("Forma originale ripristinata.");
   });
@@ -419,7 +532,7 @@
   const saveSnaps = () => { try { localStorage.setItem(SNAPKEY, JSON.stringify(snaps)); } catch (e) {} };
   const fmt = (t) => { const d = new Date(t); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`; };
   function renderSnaps() {
-    const ul = $("snapList"); ul.innerHTML = "";
+    const ul = $("snapList"); if (ul.contains(cbox)) closeAsk(); ul.innerHTML = "";
     if (!snaps.length) { const li = document.createElement("li"); li.innerHTML = '<span class="empty">Nessun punto salvato. Dai un nome alla forma attuale e premi «Salva punto»: potrai tornarci quando vuoi.</span>'; li.style.gridTemplateColumns = "1fr"; ul.appendChild(li); return; }
     snaps.slice().sort((a, b) => b.t - a.t).forEach(sn => {
       const li = document.createElement("li");
@@ -432,8 +545,8 @@
         RC.ORDER.forEach(k => { if (!o.pieces[k]) o.pieces[k] = clone(DEF.pieces[k]); });
         pushHist(); proj = o; $("pname").value = proj.name; selectPiece(proj.pieces[proj.cur] ? proj.cur : "corpo");
         status(`Tornato al punto «${sn.name}».`);
-      });
-      b2.onclick = () => ask(`Eliminare il punto «${sn.name}»?`, () => { snaps = snaps.filter(x => x.id !== sn.id); saveSnaps(); renderSnaps(); status("Punto eliminato."); });
+      }, li);
+      b2.onclick = () => ask(`Eliminare il punto «${sn.name}»?`, () => { snaps = snaps.filter(x => x.id !== sn.id); saveSnaps(); renderSnaps(); status("Punto eliminato."); }, li);
       li.append(nm, b1, b2); ul.appendChild(li);
     });
   }

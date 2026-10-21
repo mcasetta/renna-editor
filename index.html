@@ -43,24 +43,29 @@
     <div class="col">
       <section class="board">
         <div class="hd"><h2><span class="tag" style="background:var(--wire)"></span><span id="titleA">Di lato</span></h2>
-          <span class="hint">muso a sinistra · y = altezza da terra (cm) · in grigio gli altri pezzi</span></div>
+          <span class="hint">muso a sinistra · y = altezza da terra (cm) · in grigio gli altri pezzi</span>
+          <div class="tools" data-view="side"><button type="button" id="moveBtn" aria-pressed="false" title="Trascina un pezzo (anche uno grigio) per spostarlo tutto intero. Anche Maiusc + trascina.">✥ Sposta pezzo</button><button type="button" data-act="out" title="Allontana (o rotellina del mouse)">−</button><button type="button" data-act="in" title="Avvicina (o rotellina del mouse)">+</button><button type="button" data-act="fit" title="Rimetti tutto in vista">Adatta</button><button type="button" data-act="max" title="Ingrandisci il riquadro (Esc per tornare)">⤢</button></div></div>
         <canvas id="cvSide" class="cv-side"></canvas>
         <div class="selbar" id="selSide"></div>
       </section>
       <section class="board">
         <div class="hd"><h2><span class="tag" style="background:var(--horiz)"></span><span id="titleB">Dall'alto</span></h2>
-          <span class="hint" id="hintB">simmetrico: modifichi la metà superiore, l'altra si specchia</span></div>
+          <span class="hint" id="hintB">simmetrico: modifichi la metà superiore, l'altra si specchia</span>
+          <div class="tools" data-view="top"><button type="button" data-act="out" title="Allontana (o rotellina del mouse)">−</button><button type="button" data-act="in" title="Avvicina (o rotellina del mouse)">+</button><button type="button" data-act="fit" title="Rimetti tutto in vista">Adatta</button><button type="button" data-act="max" title="Ingrandisci il riquadro (Esc per tornare)">⤢</button></div></div>
         <canvas id="cvTop" class="cv-top"></canvas>
         <div class="selbar" id="selTop"></div>
       </section>
       <p class="keys">Trascina un punto per spostarlo · <b>doppio clic</b> sulla linea per aggiungere un punto (anche sull'asse blu) ·
         seleziona un punto e premi <kbd>Canc</kbd> (o il pulsante) per toglierlo · le linee rosse sono gli anelli: trascinale per spostarle lungo l'asse,
-        i due pallini rossi sul profilo sono i <b>punti di contatto</b>: trascinali uno alla volta per inclinare l'anello · la linea blu tratteggiata con i quadratini è l'<b>asse della croce</b>: sposta i quadratini per piegarla.</p>
+        i due pallini rossi sul profilo sono i <b>punti di contatto</b>: trascinali uno alla volta per inclinare l'anello · la linea blu tratteggiata con i quadratini è l'<b>asse della croce</b>: sposta i quadratini per piegarla ·
+        <b>rotellina</b> per avvicinare/allontanare, trascina un punto vuoto per spostare la vista ·
+        <b>✥ Sposta pezzo</b> (o Maiusc + trascina) per spostare tutto un pezzo rispetto agli altri.</p>
     </div>
 
     <div class="col">
       <section class="board">
-        <div class="hd"><h2>Vista 3D</h2><span class="hint">trascina per ruotare · in chiaro gli altri pezzi</span></div>
+        <div class="hd"><h2>Vista 3D</h2><span class="hint">trascina per ruotare · Maiusc + trascina (o tasto destro) per spostare la vista · in chiaro gli altri pezzi</span>
+          <div class="tools" data-view="3d"><button type="button" data-act="out" title="Allontana (o rotellina del mouse)">−</button><button type="button" data-act="in" title="Avvicina (o rotellina del mouse)">+</button><button type="button" data-act="fit" title="Rimetti tutto in vista">Adatta</button><button type="button" data-act="max" title="Ingrandisci il riquadro (Esc per tornare)">⤢</button></div></div>
         <canvas id="cv3d" class="cv-3d"></canvas>
       </section>
       <section class="board">

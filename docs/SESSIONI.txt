@@ -25,3 +25,18 @@ File modificati: src/core.js, test/core.test.mjs, tools/anteprima-pdf.mjs, CLAUD
 Chiusura sessione 1:
 - Repo GitHub creato dall'utente e collegato: git@github.com:mcasetta/renna-editor.git (push fatto, main traccia origin/main).
 Prossimi passi: TODO 5 (aggiungere ai test i .json reali dell'utente in test/progetti/), poi corna, orecchie e coda.
+
+--- Sessione 2 - 2026-10-21 ---
+Obiettivo: richieste dell'utente sull'interfaccia.
+Attivita':
+- Punti salvati: la conferma Si'/No ora appare nella riga del punto (prima in cima alla pagina, non si vedeva).
+- Viste lato/alto: zoom con rotellina e pulsanti, spostamento della vista trascinando il vuoto, "Adatta".
+  Quando si zooma il riquadro di riferimento resta fermo (View.zb), cosi' la vista non salta mentre si modifica.
+- Vista 3D: zoom e spostamento della vista.
+- Riquadri ingrandibili a tutta finestra (classe .max), Esc per tornare.
+- Vista di lato: "Sposta pezzo" (o Maiusc + trascina) sposta profilo, asse e anelli del pezzo sotto il mouse,
+  anche quelli grigi; il secondo anello (s, w) non cambia. Con Annulla si torna indietro.
+- Provato in Chrome headless (script in scratchpad): nessun errore, screenshot controllati. npm test verde.
+Decisioni: lo zoom si azzera cambiando pezzo. Il formato dei .json non cambia.
+Prossimi passi: provare a mano; TODO 5; eventuale spostamento abbinato delle zampe gemelle.
+File modificati: index.html, src/app.js, src/style.css, docs/*.

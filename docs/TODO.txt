@@ -28,3 +28,12 @@ Punti fragili emersi nell'analisi iniziale (sessione 1, 2026-10-20):
 
 Idee future:
 [ ] Corna, orecchie, coda.
+
+Richieste utente (sessione 2, 2026-10-21):
+[RISOLTO] Ripristino/eliminazione dei punti salvati "non funzionano".
+       -> Funzionavano, ma la domanda Si'/No compariva in cima alla pagina (fuori vista). Ora compare nella riga del punto.
+[DONE] Ingrandire i riquadri (lato, alto, 3D): pulsante ⤢, Esc per tornare.
+[DONE] Zoom nei riquadri: rotellina (verso il mouse), pulsanti - / + / Adatta; trascinando un punto vuoto si sposta la vista.
+       Nel 3D: Maiusc + trascina o tasto destro per spostare la vista.
+[DONE] Spostare un pezzo intero nella vista di lato: "✥ Sposta pezzo" o Maiusc + trascina (anche i pezzi grigi).
+[ ] Valutare: spostando una zampa, spostare insieme anche la gemella (sinistra/destra) se coincidono di lato.
