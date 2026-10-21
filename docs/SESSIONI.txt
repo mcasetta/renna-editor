@@ -46,3 +46,4 @@ Sessione 2 (continua) - vista 3D:
 - Nota: la bussola segue la convenzione dell'app (z positivo = destra), che e' speculare (vedi TODO 7).
 Decisioni: scelte dell'utente 1+2+3 (pavimento/ombra, profondita', viste pronte); non si blocca la vista sotto terra.
 File modificati: index.html, src/app.js, docs/*.
+Decisione: valutate e scartate le idee "anelli aperti in punta" e "3 anelli a 60 gradi" (vedi ANALISI.txt).

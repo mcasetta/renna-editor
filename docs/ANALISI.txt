@@ -20,3 +20,8 @@ Requisito principale: misure esatte e stampe chiare.
 - 2026-10-20: le sagome sono una guida "a grandi linee", qualche mm di gioco e' accettabile.
   Si accetta di lasciare fuori dai fogli fino a 1 cm di curva (GAP in core.js) per risparmiare fogli.
   Anelli trasversali: su una pagina verticale se ci stanno, altrimenti su piu' fogli come gli anelli grandi.
+
+Decisione 2026-10-21 (sessione 2) - idee valutate e scartate dall'utente:
+- Anelli lunghi aperti in punta (capi fissati su un anello rosso): fattibile (media), ma non serve.
+- Tre anelli lunghi a 60 gradi invece della croce: modifica grossa; con l'asse piegato gli anelli inclinati
+  non sarebbero piani (pieghe difficili a mano). Scartata: si resta con la croce a 2 anelli.
