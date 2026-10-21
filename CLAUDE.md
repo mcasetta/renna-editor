@@ -298,6 +298,7 @@ Prossima fase: correzione dei punti fragili emersi nell'analisi iniziale (vedi `
 ### Cosa è stato fatto
 - Lettura del codice, `npm test` verde, primo commit git locale.
 - CLAUDE.md adeguato al template di `utility/`.
+- Sessione 2: zoom, riquadri ingranditi, sposta pezzo, conferma punti salvati, vista 3D piu' leggibile.
 
 ### Prossimi Passi
 Vedi `docs/TODO.txt`.

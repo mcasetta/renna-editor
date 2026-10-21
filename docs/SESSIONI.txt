@@ -47,3 +47,7 @@ Sessione 2 (continua) - vista 3D:
 Decisioni: scelte dell'utente 1+2+3 (pavimento/ombra, profondita', viste pronte); non si blocca la vista sotto terra.
 File modificati: index.html, src/app.js, docs/*.
 Decisione: valutate e scartate le idee "anelli aperti in punta" e "3 anelli a 60 gradi" (vedi ANALISI.txt).
+Chiusura sessione 2:
+- Push su GitHub di tutte le modifiche della sessione.
+Prossimi passi: TODO 5 (test con i .json reali in test/progetti/); eventuale spostamento abbinato delle zampe gemelle;
+poi corna, orecchie e coda.
