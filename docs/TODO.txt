@@ -37,3 +37,9 @@ Richieste utente (sessione 2, 2026-10-21):
        Nel 3D: Maiusc + trascina o tasto destro per spostare la vista.
 [DONE] Spostare un pezzo intero nella vista di lato: "✥ Sposta pezzo" o Maiusc + trascina (anche i pezzi grigi).
 [ ] Valutare: spostando una zampa, spostare insieme anche la gemella (sinistra/destra) se coincidono di lato.
+[DONE] Vista 3D poco leggibile (non si capisce se si guarda da sopra o da sotto):
+       -> Corretto il segno dell'inclinazione: prima la vista iniziale era in realta' da SOTTO.
+       -> Pavimento pieno con griglia + ombra della renna (da sopra); da sotto il pavimento copre la renna.
+       -> Profondita': fili vicini piu' spessi e scuri, lontani piu' sottili e chiari.
+       -> Viste pronte Lato / Fronte / Alto / 3/4, bussola (muso, alto, destra) e scritta "vista da sopra/sotto".
+[ ] Eventuale: anelli "pieni" semitrasparenti nel 3D (proposta 5, rimandata).

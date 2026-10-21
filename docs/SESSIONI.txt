@@ -40,3 +40,9 @@ Attivita':
 Decisioni: lo zoom si azzera cambiando pezzo. Il formato dei .json non cambia.
 Prossimi passi: provare a mano; TODO 5; eventuale spostamento abbinato delle zampe gemelle.
 File modificati: index.html, src/app.js, src/style.css, docs/*.
+Sessione 2 (continua) - vista 3D:
+- Scoperto che con pitch > 0 la camera stava sotto il terreno: ora pitch > 0 = da sopra (proiezione P corretta).
+- Pavimento pieno + ombra, attenuazione con la profondita', viste pronte animate (camTo), bussola e scritta da sopra/sotto.
+- Nota: la bussola segue la convenzione dell'app (z positivo = destra), che e' speculare (vedi TODO 7).
+Decisioni: scelte dell'utente 1+2+3 (pavimento/ombra, profondita', viste pronte); non si blocca la vista sotto terra.
+File modificati: index.html, src/app.js, docs/*.

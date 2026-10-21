@@ -306,9 +306,24 @@
   c3.addEventListener("pointermove", (e) => {
     if (!drag3) return; const dx = e.clientX - drag3[0], dy = e.clientY - drag3[1];
     if (drag3[6]) { const d = window.devicePixelRatio || 1; pan3 = [drag3[4] + dx * d, drag3[5] + dy * d]; }
-    else { yaw = drag3[2] + dx * 0.01; pitch = Math.max(-1.4, Math.min(1.4, drag3[3] + dy * 0.01)); }
+    else { anim3 = null; yaw = drag3[2] + dx * 0.01; pitch = Math.max(-1.55, Math.min(1.55, drag3[3] + dy * 0.01)); }
     draw3d();
   });
+  // viste pronte: [yaw, pitch]; pitch > 0 = da sopra
+  const CAMS = { side: [0, 0], front: [Math.PI / 2, 0], top: [0, 1.55], q34: [-0.75, 0.32] };
+  let anim3 = null;
+  function camTo(k) {
+    const [y1, p1] = CAMS[k], y0 = yaw, p0 = pitch, z0 = zoom3, q0 = pan3.slice(), t0 = performance.now();
+    let dy = (y1 - y0) % (2 * Math.PI); if (dy > Math.PI) dy -= 2 * Math.PI; if (dy < -Math.PI) dy += 2 * Math.PI;   // giro più corto
+    const dur = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 350, me = {}; anim3 = me;
+    const step = (now) => {
+      if (anim3 !== me) return;
+      const t = dur ? Math.min(1, (now - t0) / dur) : 1, e = t * t * (3 - 2 * t);
+      yaw = y0 + dy * e; pitch = p0 + (p1 - p0) * e; zoom3 = z0 + (1 - z0) * e; pan3 = [q0[0] * (1 - e), q0[1] * (1 - e)];
+      draw3d(); if (t < 1) requestAnimationFrame(step); else anim3 = null;
+    };
+    requestAnimationFrame(step);
+  }
   const end3 = () => { drag3 = null; c3.style.cursor = "grab"; };
   c3.addEventListener("pointerup", end3); c3.addEventListener("pointercancel", end3);
   c3.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -334,21 +349,61 @@
     if (!c3.width) return; const C = css(), W = c3.width, H = c3.height, dpr = window.devicePixelRatio || 1;
     x3.clearRect(0, 0, W, H);
     const cx = 44, cy = 42, cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
-    const P = (x, y, z) => { x -= cx; y -= cy; z = -z; const X = x * cyw - z * syw, Z = x * syw + z * cyw; return [X, y * cp - Z * sp, y * sp + Z * cp]; };
+    // P → [X schermo, Y schermo, profondità (più grande = più lontano)]; con pitch > 0 la camera sta sopra e guarda in giù
+    const P = (x, y, z) => { x -= cx; y -= cy; z = -z; const X = x * cyw - z * syw, Z = x * syw + z * cyw; return [X, y * cp + Z * sp, -y * sp + Z * cp]; };
     const sc = base3() * zoom3, S = (p) => [W / 2 + pan3[0] + p[0] * sc, H / 2 + pan3[1] - p[1] * sc];
-    // terreno
-    x3.strokeStyle = C.grid5; x3.lineWidth = dpr;
-    for (let g = -40; g <= 40; g += 10) { const a = S(P(cx + g, 0, -20)), b = S(P(cx + g, 0, 20)); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke(); }
-    for (let g = -20; g <= 20; g += 10) { const a = S(P(cx - 40, 0, g)), b = S(P(cx + 40, 0, g)); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke(); }
-    const lines = [];
+    const above = pitch > 0.02;
+    // pavimento pieno con griglia: da sopra sta sotto alla renna, da sotto la copre (quasi) tutta
+    const fx0 = cx - 50, fx1 = cx + 50, fz = 30;
+    const floor = () => {
+      x3.globalAlpha = above ? 0.85 : 0.8; x3.fillStyle = C.grid; x3.beginPath();
+      [[fx0, -fz], [fx1, -fz], [fx1, fz], [fx0, fz]].forEach((q, i) => { const p = S(P(q[0], 0, q[1])); i ? x3.lineTo(...p) : x3.moveTo(...p); });
+      x3.closePath(); x3.fill(); x3.globalAlpha = 1; x3.strokeStyle = C.grid5; x3.lineWidth = dpr;
+      for (let g = fx0; g <= fx1; g += 10) { const a = S(P(g, 0, -fz)), b = S(P(g, 0, fz)); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke(); }
+      for (let g = -fz; g <= fz; g += 10) { const a = S(P(fx0, 0, g)), b = S(P(fx1, 0, g)); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke(); }
+    };
+    const lines = [], shadow = [];
     const faint = { wire: C.muted, horiz: C.muted, ring: C.muted };
     RC.ORDER.forEach(k => { if (k === proj.cur) return; pieceLines(P, others[k], proj.pieces[k], faint, 1.2, 0.35, lines); });
     pieceLines(P, D, st, { wire: C.wire, horiz: C.horiz, ring: C.ring }, 2.4, 1, lines);
-    lines.sort((p, q) => q.z - p.z);
     x3.lineCap = "round";
-    for (const l of lines) { x3.globalAlpha = l.alpha; x3.strokeStyle = l.color; x3.lineWidth = l.w * dpr; const a = S(l.a), b = S(l.b); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke(); }
+    if (above) {
+      floor();
+      // ombra: tutti i fili schiacciati sul pavimento (luce dall'alto)
+      const Pg = (x, y, z) => P(x, 0, z);
+      RC.ORDER.forEach(k => pieceLines(Pg, k === proj.cur ? D : others[k], proj.pieces[k], faint, 1, 1, shadow));
+      x3.globalAlpha = 0.16; x3.strokeStyle = C.ink; x3.lineWidth = 2.2 * dpr; x3.beginPath();
+      for (const l of shadow) { const a = S(l.a), b = S(l.b); x3.moveTo(...a); x3.lineTo(...b); }
+      x3.stroke(); x3.globalAlpha = 1;
+    }
+    // profondità: i fili vicini più spessi e scuri, quelli lontani più sottili e chiari
+    let zn = Infinity, zf = -Infinity; for (const l of lines) { zn = Math.min(zn, l.z); zf = Math.max(zf, l.z); }
+    const zr = zf - zn || 1;
+    lines.sort((p, q) => q.z - p.z);
+    for (const l of lines) {
+      const t = (l.z - zn) / zr;
+      x3.globalAlpha = l.alpha * (1 - 0.6 * t); x3.strokeStyle = l.color; x3.lineWidth = l.w * (1.4 - 0.75 * t) * dpr;
+      const a = S(l.a), b = S(l.b); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke();
+    }
     x3.globalAlpha = 1;
+    if (!above) floor();
     const m = S(P(8, 72, 0)); x3.fillStyle = C.muted; x3.font = `500 ${11 * dpr}px Archivo, sans-serif`; x3.fillText("◀ muso", m[0], m[1]);
+    // bussola in basso a sinistra: gira con la vista
+    const R = 30 * dpr, ox = 40 * dpr + R, oy = H - 26 * dpr - R;
+    x3.globalAlpha = 0.7; x3.fillStyle = C.panel; x3.beginPath(); x3.arc(ox, oy, R + 18 * dpr, 0, Math.PI * 2); x3.fill(); x3.globalAlpha = 1;
+    const axes = [["muso", [-1, 0, 0], C.ink], ["alto", [0, 1, 0], C.horiz], ["destra", [0, 0, 1], C.ring]]
+      .map(([t, v, col]) => { const p = P(cx + v[0], cy + v[1], v[2]); return { t, col, x: p[0], y: p[1], z: p[2] }; })
+      .sort((a, b) => b.z - a.z);
+    x3.font = `600 ${10 * dpr}px Archivo, sans-serif`; x3.textAlign = "center"; x3.textBaseline = "middle";
+    for (const a of axes) {
+      x3.globalAlpha = a.z > 0.05 ? 0.4 : 1;   // asse che va verso il fondo: più chiaro
+      x3.strokeStyle = x3.fillStyle = a.col; x3.lineWidth = 2 * dpr; x3.beginPath(); x3.moveTo(ox, oy); x3.lineTo(ox + a.x * R, oy - a.y * R); x3.stroke();
+      x3.beginPath(); x3.arc(ox + a.x * R, oy - a.y * R, 2.5 * dpr, 0, Math.PI * 2); x3.fill();
+      const n = Math.hypot(a.x, a.y), ux = n > 0.15 ? a.x / n : 0.7, uy = n > 0.15 ? a.y / n : -0.7;   // asse quasi di punta: scritta di lato
+      x3.fillText(a.t, ox + a.x * R + ux * 14 * dpr, oy - a.y * R - uy * 9 * dpr);
+    }
+    x3.globalAlpha = 1; x3.textAlign = "left"; x3.textBaseline = "alphabetic"; x3.fillStyle = C.muted; x3.font = `500 ${10.5 * dpr}px Archivo, sans-serif`;
+    x3.fillText(pitch > 0.02 ? "vista da sopra" : pitch < -0.02 ? "vista da sotto" : "vista ad altezza terra", 10 * dpr, 16 * dpr);
   }
 
   // ------------------------------------------------ pannello
@@ -460,6 +515,7 @@
     });
   }
   document.querySelectorAll(".tools").forEach(tb => tb.addEventListener("click", (e) => {
+    const cam = e.target.closest("button[data-cam]"); if (cam) { camTo(cam.dataset.cam); return; }
     const b = e.target.closest("button[data-act]"); if (!b) return;
     const which = tb.dataset.view, act = b.dataset.act, v = which === "side" ? side : which === "top" ? top : null;
     const W = v ? v.c.width : c3.width, H = v ? v.c.height : c3.height;
