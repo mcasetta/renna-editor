@@ -43,3 +43,10 @@ Richieste utente (sessione 2, 2026-10-21):
        -> Profondita': fili vicini piu' spessi e scuri, lontani piu' sottili e chiari.
        -> Viste pronte Lato / Fronte / Alto / 3/4, bussola (muso, alto, destra) e scritta "vista da sopra/sotto".
 [ ] Eventuale: anelli "pieni" semitrasparenti nel 3D (proposta 5, rimandata).
+
+Richieste utente (sessione 3, 2026-10-22):
+[DONE] Vista 3D: spostarsi con le frecce (Maiusc + frecce = ruotare, + / - = zoom), col mouse sopra la vista o dopo averci cliccato.
+       La vista non e' piu' fissa al centro: gira attorno al punto guardato, e lo zoom con la rotellina va verso il mouse
+       (zoomando sul muso il muso resta in vista). Zoom massimo portato da x15 a x30.
+[DONE] Vista 3D: pulsante "Pelle" = renna rivestita di corda (superficie piena + giri di corda ogni 1,2 cm).
+       Sostituisce la proposta "anelli pieni semitrasparenti" (sopra).

@@ -51,3 +51,14 @@ Chiusura sessione 2:
 - Push su GitHub di tutte le modifiche della sessione.
 Prossimi passi: TODO 5 (test con i .json reali in test/progetti/); eventuale spostamento abbinato delle zampe gemelle;
 poi corna, orecchie e coda.
+
+--- Sessione 3 - 2026-10-22 ---
+Obiettivo: vista 3D piu' comoda (spostarsi, zoom sul muso) e "pelle" per vedere la renna finita.
+Attivita':
+- Vista 3D: frecce per spostarsi, Maiusc + frecce per ruotare, + / - per lo zoom; la rotazione gira attorno al punto guardato.
+- Zoom con rotellina verso il mouse rifatto sul punto guardato; zoom massimo x30.
+- Pulsante "Pelle": RC.skin (core.js) + disegno a quadrilateri pieni con giri di corda.
+- Provato in Chrome headless (pagine di prova in dist/, screenshot in scratchpad). npm test verde.
+Decisioni: la pelle e' solo visiva (niente PDF, niente salvataggio nel .json); il formato dei file non cambia.
+Prossimi passi: provare a mano (fluidita' con la pelle attiva); TODO 5; corna, orecchie e coda.
+File modificati: index.html, src/app.js, src/core.js, src/style.css, docs/*.

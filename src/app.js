@@ -299,27 +299,49 @@
   // ------------------------------------------------ vista 3D
   const c3 = $("cv3d"), x3 = c3.getContext("2d"); let yaw = -0.75, pitch = 0.32, drag3 = null;
   new ResizeObserver(() => { const r = c3.getBoundingClientRect(), d = window.devicePixelRatio || 1; c3.width = Math.round(r.width * d); c3.height = Math.round(r.height * d); draw3d(); }).observe(c3);
-  let zoom3 = 1, pan3 = [0, 0];   // pan3 in pixel del canvas
+  // tgt3 = punto (cm) al centro del riquadro: la vista gira attorno a lui, quindi zoomando sul muso il muso resta in vista
+  const TGT0 = [44, 42, 0];
+  let zoom3 = 1, tgt3 = TGT0.slice(), skin3 = false;
   const base3 = () => Math.min(c3.width / 86, c3.height / 80);
-  // drag3: [x, y, yaw, pitch, panX, panY, sposta la vista?]
-  c3.addEventListener("pointerdown", (e) => { drag3 = [e.clientX, e.clientY, yaw, pitch, pan3[0], pan3[1], e.shiftKey || e.button !== 0]; c3.setPointerCapture(e.pointerId); c3.style.cursor = drag3[6] ? "move" : "grabbing"; });
+  // assi del riquadro (destra, su) in coordinate del mondo, per la rotazione attuale
+  const axes3 = () => { const cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch); return [[cyw, 0, syw], [syw * sp, cp, -cyw * sp]]; };
+  // sposta il punto guardato di (a, b) cm del riquadro (a verso destra, b verso l'alto)
+  function shift3(a, b) { const [r, u] = axes3(); tgt3 = tgt3.map((v, i) => v + a * r[i] + b * u[i]); }
+  // drag3: [x, y, yaw, pitch, ultimo x, ultimo y, sposta la vista?]
+  c3.addEventListener("pointerdown", (e) => { c3.focus({ preventScroll: true }); drag3 = [e.clientX, e.clientY, yaw, pitch, e.clientX, e.clientY, e.shiftKey || e.button !== 0]; c3.setPointerCapture(e.pointerId); c3.style.cursor = drag3[6] ? "move" : "grabbing"; });
   c3.addEventListener("pointermove", (e) => {
     if (!drag3) return; const dx = e.clientX - drag3[0], dy = e.clientY - drag3[1];
-    if (drag3[6]) { const d = window.devicePixelRatio || 1; pan3 = [drag3[4] + dx * d, drag3[5] + dy * d]; }
+    if (drag3[6]) { const k = (window.devicePixelRatio || 1) / (base3() * zoom3); anim3 = null; shift3(-(e.clientX - drag3[4]) * k, (e.clientY - drag3[5]) * k); drag3[4] = e.clientX; drag3[5] = e.clientY; }
     else { anim3 = null; yaw = drag3[2] + dx * 0.01; pitch = Math.max(-1.55, Math.min(1.55, drag3[3] + dy * 0.01)); }
     draw3d();
   });
+  // frecce = spostarsi, Maiusc + frecce = ruotare, + / - = zoom (col mouse sopra la vista 3D o dopo averci cliccato)
+  let over3 = false;
+  c3.addEventListener("pointerenter", () => { over3 = true; }); c3.addEventListener("pointerleave", () => { over3 = false; });
+  function key3(e) {
+    const a = document.activeElement;
+    if (!(a === c3 || (over3 && !/INPUT|SELECT|TEXTAREA/.test(a.tagName)))) return false;
+    const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+    if (dir) {
+      anim3 = null;
+      if (e.shiftKey) { yaw += dir[0] * 0.08; pitch = Math.max(-1.55, Math.min(1.55, pitch + dir[1] * 0.08)); }
+      else { const k = 40 * (window.devicePixelRatio || 1) / (base3() * zoom3); shift3(dir[0] * k, dir[1] * k); }
+    } else if (e.key === "+" || e.key === "=") zoom3At(c3.width / 2, c3.height / 2, 1.2);
+    else if (e.key === "-") zoom3At(c3.width / 2, c3.height / 2, 1 / 1.2);
+    else return false;
+    e.preventDefault(); draw3d(); return true;
+  }
   // viste pronte: [yaw, pitch]; pitch > 0 = da sopra
   const CAMS = { side: [0, 0], front: [Math.PI / 2, 0], top: [0, 1.55], q34: [-0.75, 0.32] };
   let anim3 = null;
   function camTo(k) {
-    const [y1, p1] = CAMS[k], y0 = yaw, p0 = pitch, z0 = zoom3, q0 = pan3.slice(), t0 = performance.now();
+    const [y1, p1] = CAMS[k], y0 = yaw, p0 = pitch, z0 = zoom3, q0 = tgt3.slice(), t0 = performance.now();
     let dy = (y1 - y0) % (2 * Math.PI); if (dy > Math.PI) dy -= 2 * Math.PI; if (dy < -Math.PI) dy += 2 * Math.PI;   // giro più corto
     const dur = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 350, me = {}; anim3 = me;
     const step = (now) => {
       if (anim3 !== me) return;
       const t = dur ? Math.min(1, (now - t0) / dur) : 1, e = t * t * (3 - 2 * t);
-      yaw = y0 + dy * e; pitch = p0 + (p1 - p0) * e; zoom3 = z0 + (1 - z0) * e; pan3 = [q0[0] * (1 - e), q0[1] * (1 - e)];
+      yaw = y0 + dy * e; pitch = p0 + (p1 - p0) * e; zoom3 = z0 + (1 - z0) * e; tgt3 = q0.map((v, i) => v + (TGT0[i] - v) * e);
       draw3d(); if (t < 1) requestAnimationFrame(step); else anim3 = null;
     };
     requestAnimationFrame(step);
@@ -328,9 +350,10 @@
   c3.addEventListener("pointerup", end3); c3.addEventListener("pointercancel", end3);
   c3.addEventListener("contextmenu", (e) => e.preventDefault());
   function zoom3At(px, py, f) {
-    const W = c3.width, H = c3.height, s0 = base3() * zoom3, qx = (px - W / 2 - pan3[0]) / s0, qy = (py - H / 2 - pan3[1]) / s0;
-    zoom3 = Math.max(0.4, Math.min(15, zoom3 * f)); const s1 = base3() * zoom3;
-    pan3 = [px - W / 2 - qx * s1, py - H / 2 - qy * s1]; draw3d();
+    // il punto sotto il mouse resta fermo: sposto il punto guardato verso di lui
+    anim3 = null; const s0 = base3() * zoom3, qx = (px - c3.width / 2) / s0, qy = (c3.height / 2 - py) / s0;
+    const z1 = Math.max(0.4, Math.min(30, zoom3 * f)), g = 1 - zoom3 / z1; zoom3 = z1;
+    shift3(qx * g, qy * g); draw3d();
   }
   c3.addEventListener("wheel", (e) => {
     e.preventDefault(); const r = c3.getBoundingClientRect(), d = window.devicePixelRatio || 1;
@@ -344,14 +367,31 @@
     add(d.H.map(p => d.toWorldB(p[0], p[1])), color.horiz);
     d.rings.forEach(r => add(r.curve.map(p => [r.c[0] + p[1] * r.d[0], r.c[1] + p[1] * r.d[1], p[0] + z0]), color.ring));
   }
+  // pelle: griglia di punti per pezzo, ricalcolata solo quando il pezzo cambia (D nuovo)
+  const skinCache = new WeakMap();
+  function skinOf(d, pc) { if (!skinCache.has(d)) skinCache.set(d, RC.skin(pc, d)); return skinCache.get(d); }
+  function skinPolys(P, d, pc, out) {
+    const rows = skinOf(d, pc); if (!rows) return;
+    const Q = rows.map(r => r.map(p => P(...p))), M = Q[0].length;
+    for (let i = 1; i < Q.length; i++) for (let k = 0; k < M; k++) {
+      const k1 = (k + 1) % M, q = [Q[i - 1][k], Q[i - 1][k1], Q[i][k1], Q[i][k]];
+      // luce dal davanti, un po' dall'alto a sinistra (normale nel sistema della camera)
+      const ux = q[2][0] - q[0][0], uy = q[2][1] - q[0][1], uz = q[2][2] - q[0][2], vx = q[3][0] - q[1][0], vy = q[3][1] - q[1][1], vz = q[3][2] - q[1][2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz) || 1;
+      const lit = Math.abs((-0.35 * nx + 0.45 * ny - 0.82 * nz) / nl);
+      // il bordo lungo l'anello (q[2]-q[3]) e' un giro di corda; l'ultima riga e' l'incrocio finale
+      out.push({ poly: q, z: (q[0][2] + q[1][2] + q[2][2] + q[3][2]) / 4, lit, rope: i < Q.length - 1 });
+    }
+  }
   function seg(P, a, b, color, w, alpha) { const A = P(...a), B = P(...b); return { a: A, b: B, z: (A[2] + B[2]) / 2, color, w, alpha }; }
   function draw3d() {
     if (!c3.width) return; const C = css(), W = c3.width, H = c3.height, dpr = window.devicePixelRatio || 1;
     x3.clearRect(0, 0, W, H);
-    const cx = 44, cy = 42, cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const cx = 44, cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
     // P → [X schermo, Y schermo, profondità (più grande = più lontano)]; con pitch > 0 la camera sta sopra e guarda in giù
-    const P = (x, y, z) => { x -= cx; y -= cy; z = -z; const X = x * cyw - z * syw, Z = x * syw + z * cyw; return [X, y * cp + Z * sp, -y * sp + Z * cp]; };
-    const sc = base3() * zoom3, S = (p) => [W / 2 + pan3[0] + p[0] * sc, H / 2 + pan3[1] - p[1] * sc];
+    const rot = (x, y, z) => { z = -z; const X = x * cyw - z * syw, Z = x * syw + z * cyw; return [X, y * cp + Z * sp, -y * sp + Z * cp]; };
+    const P = (x, y, z) => rot(x - tgt3[0], y - tgt3[1], z - tgt3[2]);
+    const sc = base3() * zoom3, S = (p) => [W / 2 + p[0] * sc, H / 2 - p[1] * sc];
     const above = pitch > 0.02;
     // pavimento pieno con griglia: da sopra sta sotto alla renna, da sotto la copre (quasi) tutta
     const fx0 = cx - 50, fx1 = cx + 50, fz = 30;
@@ -366,6 +406,11 @@
     const faint = { wire: C.muted, horiz: C.muted, ring: C.muted };
     RC.ORDER.forEach(k => { if (k === proj.cur) return; pieceLines(P, others[k], proj.pieces[k], faint, 1.2, 0.35, lines); });
     pieceLines(P, D, st, { wire: C.wire, horiz: C.horiz, ring: C.ring }, 2.4, 1, lines);
+    if (skin3) {
+      // i fili stanno sulla pelle: li porto un po' avanti perche' non spariscano sotto di lei
+      for (const l of lines) l.z -= 0.6;
+      RC.ORDER.forEach(k => skinPolys(P, k === proj.cur ? D : others[k], proj.pieces[k], lines));
+    }
     x3.lineCap = "round";
     if (above) {
       floor();
@@ -377,11 +422,19 @@
       x3.stroke(); x3.globalAlpha = 1;
     }
     // profondità: i fili vicini più spessi e scuri, quelli lontani più sottili e chiari
-    let zn = Infinity, zf = -Infinity; for (const l of lines) { zn = Math.min(zn, l.z); zf = Math.max(zf, l.z); }
+    let zn = Infinity, zf = -Infinity; for (const l of lines) if (!l.poly) { zn = Math.min(zn, l.z); zf = Math.max(zf, l.z); }
     const zr = zf - zn || 1;
     lines.sort((p, q) => q.z - p.z);
+    const ropeW = Math.max(0.5, Math.min(1.2, 0.08 * sc)) * dpr;
     for (const l of lines) {
-      const t = (l.z - zn) / zr;
+      if (l.poly) {
+        const q = l.poly.map(S), L = Math.round(42 + 40 * l.lit);
+        x3.globalAlpha = 1; x3.fillStyle = `hsl(33, 38%, ${L}%)`; x3.strokeStyle = x3.fillStyle; x3.lineWidth = 0.6 * dpr;
+        x3.beginPath(); x3.moveTo(...q[0]); x3.lineTo(...q[1]); x3.lineTo(...q[2]); x3.lineTo(...q[3]); x3.closePath(); x3.fill(); x3.stroke();
+        if (l.rope) { x3.strokeStyle = `hsl(28, 35%, ${L - 22}%)`; x3.lineWidth = ropeW; x3.beginPath(); x3.moveTo(...q[2]); x3.lineTo(...q[3]); x3.stroke(); }
+        continue;
+      }
+      const t = Math.max(0, Math.min(1, (l.z - zn) / zr));
       x3.globalAlpha = l.alpha * (1 - 0.6 * t); x3.strokeStyle = l.color; x3.lineWidth = l.w * (1.4 - 0.75 * t) * dpr;
       const a = S(l.a), b = S(l.b); x3.beginPath(); x3.moveTo(...a); x3.lineTo(...b); x3.stroke();
     }
@@ -392,7 +445,7 @@
     const R = 30 * dpr, ox = 40 * dpr + R, oy = H - 26 * dpr - R;
     x3.globalAlpha = 0.7; x3.fillStyle = C.panel; x3.beginPath(); x3.arc(ox, oy, R + 18 * dpr, 0, Math.PI * 2); x3.fill(); x3.globalAlpha = 1;
     const axes = [["muso", [-1, 0, 0], C.ink], ["alto", [0, 1, 0], C.horiz], ["destra", [0, 0, 1], C.ring]]
-      .map(([t, v, col]) => { const p = P(cx + v[0], cy + v[1], v[2]); return { t, col, x: p[0], y: p[1], z: p[2] }; })
+      .map(([t, v, col]) => { const p = rot(...v); return { t, col, x: p[0], y: p[1], z: p[2] }; })
       .sort((a, b) => b.z - a.z);
     x3.font = `600 ${10 * dpr}px Archivo, sans-serif`; x3.textAlign = "center"; x3.textBaseline = "middle";
     for (const a of axes) {
@@ -520,7 +573,8 @@
     const which = tb.dataset.view, act = b.dataset.act, v = which === "side" ? side : which === "top" ? top : null;
     const W = v ? v.c.width : c3.width, H = v ? v.c.height : c3.height;
     if (act === "max") setMax(tb.closest(".board"));
-    else if (act === "fit") { if (v) v.reset(); else { zoom3 = 1; pan3 = [0, 0]; draw3d(); } }
+    else if (act === "fit") { if (v) v.reset(); else { anim3 = null; zoom3 = 1; tgt3 = TGT0.slice(); draw3d(); } }
+    else if (act === "skin") { skin3 = !skin3; b.setAttribute("aria-pressed", String(skin3)); draw3d(); }
     else { const f = act === "in" ? 1.3 : 1 / 1.3; if (v) v.zoomAt(W / 2, H / 2, f); else zoom3At(W / 2, H / 2, f); }
   }));
   $("moveBtn").onclick = () => {
@@ -529,6 +583,7 @@
   };
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && document.querySelector(".board.max")) { setMax(null); return; }
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && key3(e)) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
     if ((e.key === "Delete" || e.key === "Backspace") && !/INPUT|SELECT/.test(document.activeElement.tagName)) {
       if (side.sel) side.o.del(side.sel); else if (top.sel) top.o.del(top.sel);

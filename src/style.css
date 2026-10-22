@@ -43,6 +43,8 @@ canvas { display: block; width: 100%; touch-action: none; border-radius: 4px; }
 .cv-side { aspect-ratio: 16 / 7.4; }
 .cv-top { aspect-ratio: 16 / 5.6; }
 .cv-3d { aspect-ratio: 4 / 3; cursor: grab; }
+.cv-3d:focus { outline: none; }
+.cv-3d:focus-visible { outline: 2px solid var(--sel); outline-offset: -2px; }
 @media (max-width: 600px) { .cv-side { aspect-ratio: 4 / 3; } .cv-top { aspect-ratio: 3 / 2; } }
 .tag { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
 .selbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--muted); min-height: 30px; }

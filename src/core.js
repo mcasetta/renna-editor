@@ -232,6 +232,40 @@
     return { V, H, S, s0, c0, c1, bends, rings, ringOf, LV, LH, tot, warn, ok: true, ax, ty, toWorldB };
   }
 
+  // ---------------------------------------------------------- pelle (solo per la vista 3D)
+  // anelli finti fitti lungo l'asse, calcolati come quelli veri (profilo + secondo anello);
+  // l'inclinazione segue quella degli anelli veri vicini. Ritorna una griglia di punti 3D:
+  // rows[i][k] = punto k (su M) dell'anello i; la prima e l'ultima riga sono i due incroci.
+  function skin(st, D, step, M) {
+    if (!D || !D.ok) return null;
+    step = step || 1.2; M = M || 36;
+    const e = 2 / st.n, R = D.rings, z0 = st.zoff;
+    const angAt = (s) => {
+      if (!R.length) return 0; if (s <= R[0].s) return R[0].a; if (s >= R[R.length - 1].s) return R[R.length - 1].a;
+      for (let i = 1; i < R.length; i++) if (s <= R[i].s) { const t = (s - R[i - 1].s) / (R[i].s - R[i - 1].s || 1); return R[i - 1].a + t * (R[i].a - R[i - 1].a); }
+      return 0;
+    };
+    const cs = [], sn = [];
+    for (let k = 0; k < M; k++) { const t = -Math.PI / 2 + 2 * Math.PI * k / M; cs.push(Math.cos(t)); sn.push(Math.sin(t)); }
+    const pw = (v) => Math.sign(v) * Math.pow(Math.abs(v), e);
+    const rows = [Array(M).fill([D.c0[0], D.c0[1], z0])];
+    const n = Math.max(2, Math.round(D.S / step));
+    for (let i = 1; i < n; i++) {
+      const s = D.S * i / n, at = axisAt(D.ax, D.s0 + s), nrm = [-at.t[1], at.t[0]];
+      const th = angAt(s) * Math.PI / 180, c = Math.cos(th), si = Math.sin(th);
+      const d = [nrm[0] * c + nrm[1] * si, -nrm[0] * si + nrm[1] * c];
+      const us = lineCut(D.V, at.p, d), up = us.filter(u => u > 0), dn = us.filter(u => u < 0);
+      const zs = cut(D.H, 0, s);
+      if (!up.length || !dn.length || zs.length < 2) continue;
+      const ut = Math.min(...up), ub = -Math.max(...dn), zc = (zs[0] + zs[zs.length - 1]) / 2, w = (zs[zs.length - 1] - zs[0]) / 2;
+      const row = [];
+      for (let k = 0; k < M; k++) { const u = (sn[k] >= 0 ? ut : ub) * pw(sn[k]); row.push([at.p[0] + u * d[0], at.p[1] + u * d[1], zc + w * pw(cs[k]) + z0]); }
+      rows.push(row);
+    }
+    rows.push(Array(M).fill([D.c1[0], D.c1[1], z0]));
+    return rows;
+  }
+
   // ---------------------------------------------------------- pezzi di partenza
   function bodyFromX(v, yh, topX, ringsX, n) {
     const xs = v.map(p => p[0]);
@@ -634,6 +668,6 @@
   }
 
   root.RennaCore = { TYPES, ORDER, catmull, length, cut, derive, makePdf, planTiles, normPiece, defaultProject, migrate,
-                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA };
+                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA, skin };
   if (typeof module !== "undefined") module.exports = root.RennaCore;
 })(typeof window !== "undefined" ? window : globalThis);

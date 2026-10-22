@@ -25,3 +25,13 @@ Decisione 2026-10-21 (sessione 2) - idee valutate e scartate dall'utente:
 - Anelli lunghi aperti in punta (capi fissati su un anello rosso): fattibile (media), ma non serve.
 - Tre anelli lunghi a 60 gradi invece della croce: modifica grossa; con l'asse piegato gli anelli inclinati
   non sarebbero piani (pieghe difficili a mano). Scartata: si resta con la croce a 2 anelli.
+
+--- Vista 3D: punto guardato e pelle (sessione 3, 2026-10-22) ---
+- La camera gira attorno a tgt3 (punto in cm al centro del riquadro), non piu' attorno a un centro fisso.
+  Spostare la vista (frecce, Maiusc + trascina, tasto destro) e lo zoom verso il mouse muovono tgt3 nel piano dello schermo.
+  Le viste pronte e "Adatta" rimettono tgt3 al centro della renna e lo zoom a 1.
+- Pelle (RC.skin in core.js, solo per il 3D, non va nel PDF): anelli "finti" ogni ~1,2 cm lungo l'asse, calcolati come
+  quelli veri (altezze sopra/sotto dal profilo lungo la retta inclinata, larghezza dal secondo anello, stesso esponente n);
+  l'inclinazione e' interpolata fra gli anelli veri vicini. Le estremita' si chiudono sui due incroci.
+  Disegno: quadrilateri pieni ordinati per profondita' (algoritmo del pittore) con luce semplice; i fili veri sono portati
+  0,6 cm avanti per restare visibili sopra la pelle. Dove due pezzi si compenetrano l'ordinamento puo' sbagliare un po'.
