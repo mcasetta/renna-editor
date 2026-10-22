@@ -52,3 +52,8 @@ Richieste utente (sessione 3, 2026-10-22):
        Sostituisce la proposta "anelli pieni semitrasparenti" (sopra).
 [RISOLTO] "Apri progetto" non faceva nulla: era uno <span> con un campo file invisibile di 1 px (si apriva solo cliccando
        quel pixel). Ora e' un <label>, il clic su tutto il pulsante apre la scelta del file. Difetto presente fin dall'inizio.
+[DONE] Sinistra/destra erano dal punto di vista di chi guarda la renna da davanti: ora sono quelli della renna.
+       z positivo = fianco sinistro (vista di lato col muso a sinistra = fianco sinistro). Cambiati nomi delle zampe,
+       vista dall'alto, bussola 3D, PDF (SIN./DES., FIANCO SINISTRO/DESTRO, distanza dal centro).
+       I progetti vecchi (senza lati: "animale") si aprono con le zampe scambiate di nome: la forma resta identica.
+       Risolve anche la nota del punto 7.

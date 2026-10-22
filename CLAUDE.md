@@ -377,7 +377,7 @@ circostante; non tradurre il codice esistente in inglese senza che l'utente lo c
 
 ### Modello dati (progetto salvato in .json e in localStorage `renna-progetto-v2`)
 ```
-{ name, cur, pieces: { corpo, testa, AS, AD, PS, PD }, snapshots? }
+{ name, lati: "animale", cur, pieces: { corpo, testa, AS, AD, PS, PD }, snapshots? }
 pezzo = {
   name, type: "corpo" | "zampa" | "testa",
   v:    [[x,y]...]   punti di controllo del profilo laterale (spline chiusa Catmull-Rom); x avanti→coda, y altezza da terra
@@ -385,10 +385,12 @@ pezzo = {
   top:  [[s,w]...]   metà del secondo anello: s = distanza lungo l'asse dal primo incrocio, w = mezza larghezza
   rings:[{p1,p2}]    anelli trasversali = 2 punti di contatto sul profilo; il centro è dove p1–p2 incrocia l'asse
   n:    esponente super-ellisse degli anelli (2 = ellisse, più alto = più squadrato)
-  zoff: spostamento laterale (z) del piano del pezzo; zampe sinistre negative
+  zoff: spostamento laterale (z) del piano del pezzo; z positivo = fianco SINISTRO della renna, zampe sinistre positive
 }
 ```
 Vecchi formati (`rings` con `{s,a}` o numeri, progetto con solo il corpo e `yh`) sono convertiti da `RC.migrate` / `derive`: mantieni la compatibilità.
+Sinistra/destra sono quelli della renna. I progetti senza `lati: "animale"` (fino alla sessione 3) avevano i nomi delle zampe
+scambiati: `RC.migrate` chiama `swapSides`, che scambia AS↔AD e PS↔PD senza spostare nessun filo.
 I punti salvati sono in localStorage `renna-punti-v1` come `{id, name, t, data: JSON del progetto}`.
 
 ### Flusso

@@ -281,8 +281,8 @@
     draw: (v, C) => {
       const b = v.area(bboxT()); v.grid(b, C);
       const ctx = v.ctx; ctx.fillStyle = C.muted; ctx.font = `500 ${10 * v.dpr}px Archivo, sans-serif`;
-      ctx.fillText("fianco destro", v.X(b[0]) + 30 * v.dpr, v.Y(b[3]) + 14 * v.dpr);
-      ctx.fillText("fianco sinistro", v.X(b[0]) + 30 * v.dpr, v.Y(b[1]) - 6 * v.dpr);
+      ctx.fillText("fianco sinistro", v.X(b[0]) + 30 * v.dpr, v.Y(b[3]) + 14 * v.dpr);
+      ctx.fillText("fianco destro", v.X(b[0]) + 30 * v.dpr, v.Y(b[1]) - 6 * v.dpr);
       ctx.textAlign = "right";
       const cr = RC.TYPES[st.type].cross; ctx.fillText(`${cr[0]} ◀    ▶ ${cr[1]}`, v.X(b[2]) - 6 * v.dpr, v.Y(b[3]) + 14 * v.dpr);
       ctx.textAlign = "left";
@@ -444,7 +444,7 @@
     // bussola in basso a sinistra: gira con la vista
     const R = 30 * dpr, ox = 40 * dpr + R, oy = H - 26 * dpr - R;
     x3.globalAlpha = 0.7; x3.fillStyle = C.panel; x3.beginPath(); x3.arc(ox, oy, R + 18 * dpr, 0, Math.PI * 2); x3.fill(); x3.globalAlpha = 1;
-    const axes = [["muso", [-1, 0, 0], C.ink], ["alto", [0, 1, 0], C.horiz], ["destra", [0, 0, 1], C.ring]]
+    const axes = [["muso", [-1, 0, 0], C.ink], ["alto", [0, 1, 0], C.horiz], ["destra", [0, 0, -1], C.ring]]
       .map(([t, v, col]) => { const p = rot(...v); return { t, col, x: p[0], y: p[1], z: p[2] }; })
       .sort((a, b) => b.z - a.z);
     x3.font = `600 ${10 * dpr}px Archivo, sans-serif`; x3.textAlign = "center"; x3.textBaseline = "middle";
@@ -543,7 +543,8 @@
   $("pname").value = proj.name || "renna";
   $("pname").onchange = () => { proj.name = $("pname").value.trim() || "renna"; persist(); };
   $("yh").onchange = (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { pushHist(); st.axis[0][1] = st.axis[1][1] = v; changed(); } };
-  $("zoff").onchange = (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { pushHist(); const sg = (proj.cur === "AS" || proj.cur === "PS") ? -1 : 1; st.zoff = sg * Math.abs(v); changed(); } };
+  // zampe sinistre a z positivo (fianco sinistro della renna)
+  $("zoff").onchange = (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { pushHist(); const sg = (proj.cur === "AS" || proj.cur === "PS") ? 1 : -1; st.zoff = sg * Math.abs(v); changed(); } };
   $("n").addEventListener("pointerdown", () => pushHist());
   $("n").addEventListener("keydown", () => pushHist());
   $("n").oninput = (e) => { st.n = parseFloat(e.target.value); changed(); };

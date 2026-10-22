@@ -287,7 +287,24 @@
   const BODY_V = [[40, 34.9], [50, 35.6], [58, 37.2], [64.5, 40.5], [68.0, 46.0], [67.6, 51.2], [64.0, 54.6],
     [56, 55.4], [46, 55.0], [37, 55.6], [29.5, 57.0], [23.5, 54.6], [19.6, 49.5], [19.0, 43.5], [22.0, 38.6], [29, 35.6]];
   const BODY_TOPX = [[19.5, 3.2], [22, 6.0], [26, 7.6], [32, 8.6], [40, 9.4], [48, 9.6], [56, 9.1], [62, 8.0], [65.5, 6.0], [67.2, 3.2]];
-  function defaultProject() {
+  // sinistra/destra sono quelli della renna: z positivo = fianco sinistro (la vista di lato col muso a sinistra mostra
+  // il fianco sinistro). Fino alla sessione 3 i nomi erano al contrario: i progetti senza lati === "animale" hanno
+  // le zampe con i nomi scambiati, e swapSides li corregge senza spostare nessun filo.
+  const LEG_NAMES = { AS: "Zampa anteriore sinistra", AD: "Zampa anteriore destra", PS: "Zampa posteriore sinistra", PD: "Zampa posteriore destra" };
+  const TWIN = { AS: "AD", AD: "AS", PS: "PD", PD: "PS" };
+  function swapSides(pr) {
+    const p = pr.pieces, q = Object.assign({}, p);
+    Object.keys(TWIN).forEach(k => {
+      if (!(TWIN[k] in p)) { delete q[k]; return; }
+      const pc = p[TWIN[k]]; q[k] = pc;
+      if (pc && pc.name === LEG_NAMES[TWIN[k]]) pc.name = LEG_NAMES[k];
+    });
+    pr.pieces = q;
+    if (TWIN[pr.cur]) pr.cur = TWIN[pr.cur];
+    pr.lati = "animale";
+    return pr;
+  }
+  function defaultProjectOld() {
     const F = [3.4, 3.2, 2.5, 2.0, 1.8, 1.7, 1.9], Hh = [4.4, 4.2, 3.2, 2.3, 1.9, 1.7, 1.9];
     const RF = [0.12, 0.27, 0.42, 0.57, 0.72, 0.87];
     return {
@@ -311,10 +328,11 @@
       },
     };
   }
+  const defaultProject = () => swapSides(defaultProjectOld());
   const ORDER = ["corpo", "testa", "AS", "AD", "PS", "PD"];
   // converte un salvataggio vecchio (solo corpo, coordinate x) nel formato a pezzi
   function migrate(o) {
-    if (o && o.pieces) { Object.values(o.pieces).forEach(normPiece); return o; }
+    if (o && o.pieces) { Object.values(o.pieces).forEach(normPiece); if (o.lati !== "animale") swapSides(o); return o; }
     if (o && Array.isArray(o.v) && typeof o.yh === "number") {
       const pr = defaultProject();
       pr.pieces.corpo = bodyFromX(o.v, o.yh, o.top, o.rings, o.n);
@@ -449,12 +467,12 @@
       stroke("green"); doc.setLineWidth(0.55); doc.line(X(s0[0]), Y(s0[1]), X(s1[0]), Y(s1[1]));
       for (const g of [1, -1]) { const e = [s1[0] - dx * .8 + nx * .45 * g, s1[1] - dy * .8 + ny * .45 * g]; doc.line(X(s1[0]), Y(s1[1]), X(e[0]), Y(e[1])); }
     }
-    // 4 punti d'incrocio di un anello trasversale; +w è il fianco destro, come nel secondo anello
+    // 4 punti d'incrocio di un anello trasversale; +w è il fianco sinistro, come nel secondo anello
     function ringMarkers(r) {
       marker(0, r.ut, "purple", r.lab[0], 2, 2, true);
       marker(0, -r.ub, "purple", r.lab[1], 2, 3, true);
-      marker(r.w, 0, "purple", "DES.", -8.5, 2.4, true);
-      marker(-r.w, 0, "purple", "SIN.", 1.6, 2.4, true);
+      marker(r.w, 0, "purple", "SIN.", -8.5, 2.4, true);
+      marker(-r.w, 0, "purple", "DES.", 1.6, 2.4, true);
     }
     const layout = [];   // dove finiscono le sagome (per i test)
     function tiledPiece(name, sub, curve, wireKey, deco, lx, ly) {
@@ -563,7 +581,7 @@
     rows.forEach(rw => { y += 4.2; textc(rw[6]); rw.slice(0, 6).forEach((t, i) => doc.text(t, cols[i], y)); });
     y += 7; font(8, true); textc("ink");
     doc.text(`Totale filo grosso per questo pezzo: circa ${(D.tot / 100).toFixed(1)} m (+10% di scorta)`, PM, y);
-    if (st.type === "zampa") { y += 4.5; font(7.6, false); doc.text(`Distanza del piano della zampa dal centro della renna: ${Math.abs(st.zoff).toFixed(1)} cm verso il fianco ${st.zoff < 0 ? "sinistro" : "destro"}.`, PM, y); }
+    if (st.type === "zampa") { y += 4.5; font(7.6, false); doc.text(`Distanza del piano della zampa dal centro della renna: ${Math.abs(st.zoff).toFixed(1)} cm verso il fianco ${st.zoff < 0 ? "destro" : "sinistro"}.`, PM, y); }
     y += 8; font(9, true); doc.text("Montaggio", PM, y); y += 4.5; font(8, false);
     const steps = [
       "1. Stampa al 100% e controlla la barra da 5 cm. Unisci i fogli di ogni anello sovrapponendo 1 cm (zona grigia) e facendo combaciare la griglia.",
@@ -602,8 +620,8 @@
         doc.text(`linea centrale: qui passa il ${ty.loopA.toLowerCase()}`, X(D.S * 0.1), Y(0) - 0.8);
         font(8, true); doc.setTextColor(110, 110, 110);
         const zm = Math.max(...D.H.map(p => p[1]));
-        doc.text("FIANCO DESTRO", X(D.S / 2), Y(zm * 0.45), { align: "center" });
-        doc.text("FIANCO SINISTRO", X(D.S / 2), Y(-zm * 0.55), { align: "center" });
+        doc.text("FIANCO SINISTRO", X(D.S / 2), Y(zm * 0.45), { align: "center" });
+        doc.text("FIANCO DESTRO", X(D.S / 2), Y(-zm * 0.55), { align: "center" });
         doc.text("< " + ty.cross[0].toUpperCase(), X(-0.3), Y(1.2), { align: "right" });
         stroke("light"); doc.setLineWidth(0.28); doc.setLineDashPattern([0.7, 1], 0);
         R.forEach(r => doc.line(X(r.s), Y(-r.w), X(r.s), Y(r.w))); doc.setLineDashPattern([], 0);
@@ -668,6 +686,6 @@
   }
 
   root.RennaCore = { TYPES, ORDER, catmull, length, cut, derive, makePdf, planTiles, normPiece, defaultProject, migrate,
-                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA, skin };
+                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA, skin, swapSides };
   if (typeof module !== "undefined") module.exports = root.RennaCore;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -47,6 +47,23 @@ assert.ok(m && m.pieces.corpo && m.pieces.testa, "migrazione di un salvataggio v
 assert.ok(RC.derive(m.pieces.corpo).ok, "il corpo migrato è valido");
 console.log("ok  migrazione dei salvataggi vecchi");
 
+// sinistra/destra sono quelli della renna: z positivo = fianco sinistro
+assert.ok(pr.pieces.AS.zoff > 0 && pr.pieces.PS.zoff > 0 && pr.pieces.AD.zoff < 0 && pr.pieces.PD.zoff < 0, "zampe sinistre a z positivo");
+assert.equal(pr.lati, "animale", "il progetto di partenza ha i lati della renna");
+// un progetto salvato prima (nomi scambiati) si apre con la stessa forma e i nomi giusti
+const vecchio = JSON.parse(JSON.stringify(pr)); delete vecchio.lati; vecchio.cur = "AS";
+["AS", "PS"].forEach(k => { const t = vecchio.pieces[k]; vecchio.pieces[k] = vecchio.pieces[RC.ORDER.find(q => q === (k === "AS" ? "AD" : "PD"))]; vecchio.pieces[k === "AS" ? "AD" : "PD"] = t; });
+vecchio.pieces.AS.name = "Zampa anteriore sinistra"; vecchio.pieces.AD.name = "Zampa anteriore destra";
+vecchio.pieces.PS.name = "Zampa posteriore sinistra"; vecchio.pieces.PD.name = "Zampa posteriore destra";
+const zVecchio = vecchio.pieces.AD.zoff;
+const mv = RC.migrate(vecchio);
+assert.equal(mv.pieces.AS.zoff, zVecchio, "la vecchia «destra» a z positivo diventa la sinistra");
+assert.equal(mv.pieces.AS.name, "Zampa anteriore sinistra", "nome della zampa corretto");
+assert.deepEqual(mv.pieces.AS.v, pr.pieces.AS.v, "la forma non cambia");
+assert.equal(mv.cur, "AD", "resta selezionata la stessa zampa");
+assert.equal(JSON.stringify(RC.migrate(JSON.parse(JSON.stringify(mv)))), JSON.stringify(mv), "riaprirlo non scambia di nuovo");
+console.log("ok  sinistra e destra dal punto di vista della renna");
+
 // un singolo pezzo "collo e testa" va al suo posto, non al posto del corpo
 const sola = RC.migrate(JSON.parse(JSON.stringify(pr.pieces.testa)));
 assert.equal(sola.cur, "testa", "un pezzo testa singolo si apre come testa");

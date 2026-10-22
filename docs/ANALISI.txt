@@ -35,3 +35,11 @@ Decisione 2026-10-21 (sessione 2) - idee valutate e scartate dall'utente:
   l'inclinazione e' interpolata fra gli anelli veri vicini. Le estremita' si chiudono sui due incroci.
   Disegno: quadrilateri pieni ordinati per profondita' (algoritmo del pittore) con luce semplice; i fili veri sono portati
   0,6 cm avanti per restare visibili sopra la pelle. Dove due pezzi si compenetrano l'ordinamento puo' sbagliare un po'.
+
+--- Sinistra e destra (sessione 3, 2026-10-22) ---
+- Sinistra/destra sono quelli della renna (decisione dell'utente). Prima l'app usava z positivo = destra, che era la destra
+  di chi guarda la renna da davanti.
+- Ora z positivo = fianco sinistro. La geometria non cambia: cambiano solo i nomi. AS e PS hanno zoff positivo.
+- Compatibilita': il progetto ha il campo lati: "animale". Se manca, RC.migrate scambia i dati AS<->AD e PS<->PD
+  (e i nomi se erano quelli di partenza), cosi' la renna salvata resta identica e prende i nomi giusti. Vale anche per
+  i punti salvati e il progetto in localStorage. Riaprire un progetto gia' convertito non lo scambia di nuovo.

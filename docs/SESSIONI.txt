@@ -68,3 +68,8 @@ Sessione 3 (continua) - renna Leroy Merlin:
   testa a ~77 cm, muso ~68, schiena ~51, pancia ~35, corpo lungo ~49 cm e stretto (mezza larghezza 7,4), collo quasi verticale,
   zampe sottili, una posteriore che fa un passo indietro come nelle foto. Tutti i pezzi senza avvisi.
 - Lo script che lo genera e' rimasto nello scratchpad della sessione (non nel repo).
+Sessione 3 (continua):
+- "Apri progetto" non faceva nulla: span -> label (il campo file era di 1 px).
+- Sinistra/destra ora dal punto di vista della renna (z positivo = fianco sinistro); migrazione dei progetti vecchi con
+  RC.swapSides (scambia i nomi delle zampe, non la forma); nuovo test. projects/renna_leroymerlin.json convertito.
+File modificati: index.html, src/core.js, src/app.js, test/core.test.mjs, projects/renna_leroymerlin.json, CLAUDE.md, docs/*.
