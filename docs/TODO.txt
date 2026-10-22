@@ -50,3 +50,5 @@ Richieste utente (sessione 3, 2026-10-22):
        (zoomando sul muso il muso resta in vista). Zoom massimo portato da x15 a x30.
 [DONE] Vista 3D: pulsante "Pelle" = renna rivestita di corda (superficie piena + giri di corda ogni 1,2 cm).
        Sostituisce la proposta "anelli pieni semitrasparenti" (sopra).
+[RISOLTO] "Apri progetto" non faceva nulla: era uno <span> con un campo file invisibile di 1 px (si apriva solo cliccando
+       quel pixel). Ora e' un <label>, il clic su tutto il pulsante apre la scelta del file. Difetto presente fin dall'inizio.
