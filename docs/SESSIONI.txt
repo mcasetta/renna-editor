@@ -62,3 +62,9 @@ Attivita':
 Decisioni: la pelle e' solo visiva (niente PDF, niente salvataggio nel .json); il formato dei file non cambia.
 Prossimi passi: provare a mano (fluidita' con la pelle attiva); TODO 5; corna, orecchie e coda.
 File modificati: index.html, src/app.js, src/core.js, src/style.css, docs/*.
+Sessione 3 (continua) - renna Leroy Merlin:
+- Scaricate le 7 foto del prodotto in images/ (ignorata da git: foto con copyright).
+- Creato projects/renna_leroymerlin.json (senza corna, orecchie, coda) con misure prese dalle foto, 105 cm corna comprese:
+  testa a ~77 cm, muso ~68, schiena ~51, pancia ~35, corpo lungo ~49 cm e stretto (mezza larghezza 7,4), collo quasi verticale,
+  zampe sottili, una posteriore che fa un passo indietro come nelle foto. Tutti i pezzi senza avvisi.
+- Lo script che lo genera e' rimasto nello scratchpad della sessione (non nel repo).
