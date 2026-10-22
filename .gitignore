@@ -1,3 +1,5 @@
 dist/
 node_modules/
 .DS_Store
+# foto di riferimento scaricate dal web (coperte da copyright, non vanno nel repo pubblico)
+images/
