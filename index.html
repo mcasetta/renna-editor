@@ -44,7 +44,7 @@
       <section class="board">
         <div class="hd"><h2><span class="tag" style="background:var(--wire)"></span><span id="titleA">Di lato</span></h2>
           <span class="hint">muso a sinistra · y = altezza da terra (cm) · in grigio gli altri pezzi</span>
-          <div class="tools" data-view="side"><button type="button" id="moveBtn" aria-pressed="false" title="Trascina un pezzo (anche uno grigio) per spostarlo tutto intero, o usa le frecce (Maiusc + frecce: 5 cm). Anche Maiusc + trascina.">✥ Sposta pezzo</button><button type="button" data-act="out" title="Allontana (o rotellina del mouse)">−</button><button type="button" data-act="in" title="Avvicina (o rotellina del mouse)">+</button><button type="button" data-act="fit" title="Rimetti tutto in vista">Adatta</button><button type="button" data-act="max" title="Ingrandisci il riquadro (Esc per tornare)">⤢</button></div></div>
+          <div class="tools" data-view="side"><button type="button" id="moveBtn" aria-pressed="false" title="Trascina un pezzo (anche uno grigio) per spostarlo tutto intero, o usa le frecce (Maiusc + frecce: 5 cm). Anche Maiusc + trascina. Ctrl + trascina per ruotarlo.">✥ Sposta pezzo</button><button type="button" id="rotL" title="Ruota il pezzo di 1° in senso antiorario (Maiusc: 5°). Con Sposta pezzo attivo anche Ctrl + freccia sinistra.">↺</button><button type="button" id="rotR" title="Ruota il pezzo di 1° in senso orario (Maiusc: 5°). Con Sposta pezzo attivo anche Ctrl + freccia destra.">↻</button><button type="button" data-act="out" title="Allontana (o rotellina del mouse)">−</button><button type="button" data-act="in" title="Avvicina (o rotellina del mouse)">+</button><button type="button" data-act="fit" title="Rimetti tutto in vista">Adatta</button><button type="button" data-act="max" title="Ingrandisci il riquadro (Esc per tornare)">⤢</button></div></div>
         <canvas id="cvSide" class="cv-side"></canvas>
         <div class="selbar" id="selSide"></div>
       </section>
@@ -59,7 +59,8 @@
         seleziona un punto e premi <kbd>Canc</kbd> (o il pulsante) per toglierlo · le linee rosse sono gli anelli: trascinale per spostarle lungo l'asse,
         i due pallini rossi sul profilo sono i <b>punti di contatto</b>: trascinali uno alla volta per inclinare l'anello · la linea blu tratteggiata con i quadratini è l'<b>asse della croce</b>: sposta i quadratini per piegarla ·
         <b>rotellina</b> per avvicinare/allontanare, trascina un punto vuoto per spostare la vista ·
-        <b>✥ Sposta pezzo</b> (o Maiusc + trascina) per spostare tutto un pezzo rispetto agli altri; con «Sposta pezzo» attivo anche le <b>frecce</b> (Maiusc + frecce = 5 cm).</p>
+        <b>✥ Sposta pezzo</b> (o Maiusc + trascina) per spostare tutto un pezzo rispetto agli altri; con «Sposta pezzo» attivo anche le <b>frecce</b> (Maiusc + frecce = 5 cm) ·
+        <b>↺ ↻</b>, Ctrl + trascina o Ctrl + ← / → (con «Sposta pezzo») per <b>ruotare</b> il pezzo attorno al suo centro (corna, orecchie e coda attorno al punto di attacco).</p>
     </div>
 
     <div class="col">

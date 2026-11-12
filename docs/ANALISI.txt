@@ -56,3 +56,6 @@ Decisione 2026-10-21 (sessione 2) - idee valutate e scartate dall'utente:
 - Pelle delle sagome piatte (sessione 4): un poligono pieno per lato + righe parallele ogni 1,2 cm, perpendicolari
   alla direzione principale della sagoma (analisi delle componenti principali dei punti). Corna marroni, il resto color corda.
   Ogni sagoma e' un solo poligono nell'ordinamento per profondita': dove tocca la testa l'ordine puo' sbagliare un po'.
+- Rotazione di un pezzo (sessione 4): rigida nel piano di lato (profilo, asse, contatti degli anelli, attacco), quindi
+  il secondo anello (s, w) resta valido. Centro: punto di attacco per le sagome piatte (restano legate), centro del
+  riquadro del profilo per gli altri pezzi. Nessun campo nuovo nel .json: si ruotano i punti.

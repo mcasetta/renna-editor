@@ -172,23 +172,51 @@
     return inside;
   }
   // sposta tutto il pezzo (profilo, asse, anelli) di dx, dy rispetto alla copia o; il secondo anello (s, w) non cambia
-  function shiftPiece(pc, o, dx, dy) {
-    const sh = (p) => [+(p[0] + dx).toFixed(2), +(p[1] + dy).toFixed(2)];
-    pc.v = o.v.map(sh);
-    if (o.pivot) { pc.pivot = sh(o.pivot); return; }   // sagoma piatta: profilo e punto di attacco
-    pc.axis = o.axis.map(sh);
-    pc.rings = o.rings.map(r => (r && r.p1 && r.p2) ? Object.assign({}, r, { p1: sh(r.p1), p2: sh(r.p2) }) : r);
+  // applica f a tutti i punti del pezzo (profilo, asse, anelli, attacco) partendo dalla copia o.
+  // Spostamenti e rotazioni sono rigidi: il secondo anello (s, w) resta valido così com'è.
+  function mapPiece(pc, o, f) {
+    const m = (p) => { const q = f(p); return [+q[0].toFixed(2), +q[1].toFixed(2)]; };
+    pc.v = o.v.map(m);
+    if (o.pivot) { pc.pivot = m(o.pivot); return; }   // sagoma piatta: profilo e punto di attacco
+    pc.axis = o.axis.map(m);
+    pc.rings = o.rings.map(r => (r && r.p1 && r.p2) ? Object.assign({}, r, { p1: m(r.p1), p2: m(r.p2) }) : r);
+  }
+  function shiftPiece(pc, o, dx, dy) { mapPiece(pc, o, (p) => [p[0] + dx, p[1] + dy]); }
+  // rotazione di deg gradi (positivo = antiorario nella vista di lato) attorno al punto c
+  function rotatePiece(pc, o, c, deg) {
+    const a = deg * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a);
+    mapPiece(pc, o, (p) => { const dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * cs - dy * sn, c[1] + dx * sn + dy * cs]; });
+  }
+  // centro di rotazione: per corna, orecchie e coda il punto di attacco (resta legato alla testa/al corpo),
+  // per gli altri pezzi il centro del profilo (metà del riquadro che lo contiene)
+  function rotCenter(pc) {
+    if (pc.pivot) return pc.pivot.slice();
+    const xs = pc.v.map(p => p[0]), ys = pc.v.map(p => p[1]);
+    return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
   }
   let moveMode = false, lastMoved = null, nudgeRun = null;
-  // "Sposta pezzo" con le frecce: muove l'ultimo pezzo trascinato, altrimenti quello della scheda aperta.
-  // Le pressioni ravvicinate dello stesso pezzo sono un solo passo di Annulla.
+  const moveTarget = () => lastMoved && proj.pieces[lastMoved] ? lastMoved : proj.cur;
+  function afterMove(k) { if (k === proj.cur) changed(); else { others[k] = RC.derive(proj.pieces[k]); persist(); drawAll(); } }
+  // "Sposta pezzo" con la tastiera: muove l'ultimo pezzo trascinato, altrimenti quello della scheda aperta.
+  // Le pressioni ravvicinate dello stesso pezzo sono un solo passo di Annulla; si riparte sempre dalla copia
+  // iniziale (o), così rotazioni ripetute non accumulano errori di arrotondamento.
+  function keyRun(kind) {
+    const k = moveTarget(), pc = proj.pieces[k], now = Date.now();
+    if (!nudgeRun || nudgeRun.k !== k || nudgeRun.kind !== kind || now - nudgeRun.t > 1500) {
+      pushHist(); nudgeRun = { k, kind, o: clone(pc), c: rotCenter(pc), dx: 0, dy: 0, deg: 0 };
+    }
+    nudgeRun.t = now; return nudgeRun;
+  }
   function nudge(dx, dy) {
-    const k = lastMoved && proj.pieces[lastMoved] ? lastMoved : proj.cur, pc = proj.pieces[k], now = Date.now();
-    if (!nudgeRun || nudgeRun.k !== k || now - nudgeRun.t > 1500) { pushHist(); nudgeRun = { k, dx: 0, dy: 0 }; }
-    nudgeRun.t = now; nudgeRun.dx += dx; nudgeRun.dy += dy;
-    shiftPiece(pc, clone(pc), dx, dy);
-    if (k === proj.cur) changed(); else { others[k] = RC.derive(pc); persist(); drawAll(); }
-    $("selSide").textContent = `${pc.name}: spostato di ${nudgeRun.dx.toFixed(1)} cm in orizzontale e ${nudgeRun.dy.toFixed(1)} cm in verticale (frecce: ${$("snap").checked ? "0,5" : "0,1"} cm, Maiusc + frecce: 5 cm).`;
+    const r = keyRun("move"), pc = proj.pieces[r.k];
+    r.dx += dx; r.dy += dy; shiftPiece(pc, r.o, r.dx, r.dy); afterMove(r.k);
+    $("selSide").textContent = `${pc.name}: spostato di ${r.dx.toFixed(1)} cm in orizzontale e ${r.dy.toFixed(1)} cm in verticale (frecce: ${$("snap").checked ? "0,5" : "0,1"} cm, Maiusc + frecce: 5 cm).`;
+  }
+  const degTxt = (d) => `${Math.abs(d).toFixed(Number.isInteger(+d.toFixed(1)) ? 0 : 1)}° ${d >= 0 ? "in senso antiorario" : "in senso orario"}`;
+  function turn(deg) {
+    const r = keyRun("rot"), pc = proj.pieces[r.k];
+    r.deg += deg; rotatePiece(pc, r.o, r.c, r.deg); afterMove(r.k);
+    $("selSide").textContent = `${pc.name}: ruotato di ${degTxt(r.deg)} attorno al ${pc.pivot ? "punto di attacco" : "centro"} (Ctrl + ← / →: 1°, con Maiusc: 5°).`;
   }
   function dring(rg) { const r = D.ok && D.ringOf ? D.ringOf(rg) : null; return r && !r.bad ? r : null; }
   function setSA(rg, s, a) { const q = RC.ringFromSA(D.V, D.ax, D.s0, s, a); if (q) { rg.p1 = q.p1; rg.p2 = q.p2; } }
@@ -211,9 +239,20 @@
       const [x0, y0] = v.w2(e);
       const k = [proj.cur].concat(RC.ORDER.filter(q => q !== proj.cur)).find(q => { const d = q === proj.cur ? D : others[q]; return d && d.V && inPoly(d.V, x0, y0); });
       if (!k) return null;
-      const pc = proj.pieces[k]; let o = null; lastMoved = k; nudgeRun = null;
+      const pc = proj.pieces[k]; let o = null;   // grab si chiama anche al passaggio del mouse: il pezzo diventa "di turno" solo quando lo trascini
+      if (e.ctrlKey) {   // Ctrl + trascina: ruota il pezzo attorno al suo centro (o al punto di attacco)
+        const c = rotCenter(pc), a0 = Math.atan2(y0 - c[1], x0 - c[0]);
+        return { rotate: true, c, move: (x, y) => {
+          if (!o) { o = clone(pc); lastMoved = k; nudgeRun = null; }
+          let d = (Math.atan2(y - c[1], x - c[0]) - a0) * 180 / Math.PI; while (d > 180) d -= 360; while (d < -180) d += 360;
+          d = $("snap").checked ? Math.round(d) : Math.round(d * 10) / 10;
+          rotatePiece(pc, o, c, d);
+          if (k !== proj.cur) others[k] = RC.derive(pc);
+          $("selSide").textContent = `${pc.name}: ruotato di ${degTxt(d)} attorno al ${pc.pivot ? "punto di attacco" : "centro"}.`;
+        } };
+      }
       return { move: (x, y) => {
-        if (!o) o = clone(pc);
+        if (!o) { o = clone(pc); lastMoved = k; nudgeRun = null; }
         const dx = snap(x - x0), dy = snap(y - y0); shiftPiece(pc, o, dx, dy);
         if (k !== proj.cur) others[k] = RC.derive(pc);
         $("selSide").textContent = `${pc.name}: spostato di ${dx.toFixed(1)} cm in orizzontale e ${dy.toFixed(1)} cm in verticale.`;
@@ -268,6 +307,7 @@
         const ps = v.isSel("pivot", 0);
         v.dot(st.pivot[0], st.pivot[1], ps ? C.sel : C.tie, ps ? 7 : 5.5, true, true);
         v.label("attacco", st.pivot[0], st.pivot[1], C.tie, 10, 14);
+        drawRotCenter(v, C);
         return;
       }
       v.path(st.axis, C.horiz, 1.5, [6, 4]);
@@ -283,8 +323,16 @@
       if (D.ok) D.rings.forEach(r => { v.dot(r.pt[0], r.pt[1], C.ring, 4.5, true); v.dot(r.pb[0], r.pb[1], C.ring, 4.5, true); });
       st.v.forEach((p, i) => v.dot(p[0], p[1], v.isSel("v", i) ? C.sel : C.wire, v.isSel("v", i) ? 6.5 : 5, v.isSel("v", i)));
       st.axis.forEach((p, i) => v.dot(p[0], p[1], v.isSel("axis", i) ? C.sel : C.horiz, v.isSel("axis", i) ? 6 : 4.5, true, true));
+      drawRotCenter(v, C);
     },
   });
+  // con "Sposta pezzo" attivo: mirino sul centro di rotazione del pezzo che si muove con la tastiera
+  function drawRotCenter(v, C) {
+    if (!moveMode) return;
+    const c = rotCenter(proj.pieces[moveTarget()]), X = v.X(c[0]), Y = v.Y(c[1]), r = 7 * v.dpr, ctx = v.ctx;
+    ctx.strokeStyle = C.sel; ctx.lineWidth = 2 * v.dpr; ctx.beginPath();
+    ctx.arc(X, Y, r, 0, Math.PI * 2); ctx.moveTo(X - 1.8 * r, Y); ctx.lineTo(X + 1.8 * r, Y); ctx.moveTo(X, Y - 1.8 * r); ctx.lineTo(X, Y + 1.8 * r); ctx.stroke();
+  }
 
   // ------------------------------------------------ secondo anello (s, z)
   const bboxT = () => { const S = D.ok && D.S ? D.S : 50; const wm = Math.max(6, ...(st.top || []).map(p => p[1])); return [-5, -wm - 3.5, S + 5, wm + 3.5]; };
@@ -638,14 +686,22 @@
     else if (act === "skin") { skin3 = !skin3; b.setAttribute("aria-pressed", String(skin3)); draw3d(); }
     else { const f = act === "in" ? 1.3 : 1 / 1.3; if (v) v.zoomAt(W / 2, H / 2, f); else zoom3At(W / 2, H / 2, f); }
   }));
+  // pulsanti ↺ ↻: 1° (con Maiusc 5°) sul pezzo che si muove con la tastiera
+  $("rotL").onclick = (e) => turn(e.shiftKey ? 5 : 1);
+  $("rotR").onclick = (e) => turn(e.shiftKey ? -5 : -1);
   $("moveBtn").onclick = () => {
-    moveMode = !moveMode; $("moveBtn").setAttribute("aria-pressed", String(moveMode)); lastMoved = null; nudgeRun = null;
-    $("selSide").textContent = moveMode ? `Trascina un pezzo (anche uno grigio) per spostarlo tutto intero, oppure usa le frecce per spostare «${st.name}» (Maiusc + frecce: 5 cm). Ripremi «Sposta pezzo» per tornare a modificare i punti.` : "Nessun punto selezionato.";
+    moveMode = !moveMode; $("moveBtn").setAttribute("aria-pressed", String(moveMode)); lastMoved = null; nudgeRun = null; side.draw();
+    $("selSide").textContent = moveMode ? `Trascina un pezzo (anche uno grigio) per spostarlo, Ctrl + trascina per ruotarlo; con la tastiera: frecce per spostare «${st.name}» (Maiusc: 5 cm), Ctrl + ← / → per ruotarlo (Maiusc: 5°). Ripremi «Sposta pezzo» per tornare a modificare i punti.` : "Nessun punto selezionato.";
   };
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && document.querySelector(".board.max")) { setMax(null); return; }
     // Sposta pezzo attivo: le frecce muovono il pezzo (ma non quando il mouse e' sulla vista 3D o si scrive in un campo)
     const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+    const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
+    // Ctrl + ← / → ruota il pezzo (1°, con Maiusc 5°)
+    if (moveMode && dir && dir[0] && (e.ctrlKey || e.metaKey) && !e.altKey && !over3 && document.activeElement !== c3 && !typing) {
+      e.preventDefault(); turn(-dir[0] * (e.shiftKey ? 5 : 1)); return;
+    }
     if (moveMode && dir && !e.ctrlKey && !e.metaKey && !e.altKey && !over3 && document.activeElement !== c3 && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
       e.preventDefault(); const k = e.shiftKey ? 5 : $("snap").checked ? 0.5 : 0.1; nudge(dir[0] * k, dir[1] * k); return;
     }
