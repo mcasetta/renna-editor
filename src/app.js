@@ -179,7 +179,17 @@
     pc.axis = o.axis.map(sh);
     pc.rings = o.rings.map(r => (r && r.p1 && r.p2) ? Object.assign({}, r, { p1: sh(r.p1), p2: sh(r.p2) }) : r);
   }
-  let moveMode = false;
+  let moveMode = false, lastMoved = null, nudgeRun = null;
+  // "Sposta pezzo" con le frecce: muove l'ultimo pezzo trascinato, altrimenti quello della scheda aperta.
+  // Le pressioni ravvicinate dello stesso pezzo sono un solo passo di Annulla.
+  function nudge(dx, dy) {
+    const k = lastMoved && proj.pieces[lastMoved] ? lastMoved : proj.cur, pc = proj.pieces[k], now = Date.now();
+    if (!nudgeRun || nudgeRun.k !== k || now - nudgeRun.t > 1500) { pushHist(); nudgeRun = { k, dx: 0, dy: 0 }; }
+    nudgeRun.t = now; nudgeRun.dx += dx; nudgeRun.dy += dy;
+    shiftPiece(pc, clone(pc), dx, dy);
+    if (k === proj.cur) changed(); else { others[k] = RC.derive(pc); persist(); drawAll(); }
+    $("selSide").textContent = `${pc.name}: spostato di ${nudgeRun.dx.toFixed(1)} cm in orizzontale e ${nudgeRun.dy.toFixed(1)} cm in verticale (frecce: ${$("snap").checked ? "0,5" : "0,1"} cm, Maiusc + frecce: 5 cm).`;
+  }
   function dring(rg) { const r = D.ok && D.ringOf ? D.ringOf(rg) : null; return r && !r.bad ? r : null; }
   function setSA(rg, s, a) { const q = RC.ringFromSA(D.V, D.ax, D.s0, s, a); if (q) { rg.p1 = q.p1; rg.p2 = q.p2; } }
   const bboxV = () => {
@@ -201,7 +211,7 @@
       const [x0, y0] = v.w2(e);
       const k = [proj.cur].concat(RC.ORDER.filter(q => q !== proj.cur)).find(q => { const d = q === proj.cur ? D : others[q]; return d && d.V && inPoly(d.V, x0, y0); });
       if (!k) return null;
-      const pc = proj.pieces[k]; let o = null;
+      const pc = proj.pieces[k]; let o = null; lastMoved = k; nudgeRun = null;
       return { move: (x, y) => {
         if (!o) o = clone(pc);
         const dx = snap(x - x0), dy = snap(y - y0); shiftPiece(pc, o, dx, dy);
@@ -520,6 +530,7 @@
     $("cvTop").style.aspectRatio = st.type === "testa" ? "16 / 5" : "";
   }
   function selectPiece(k) {
+    lastMoved = null; nudgeRun = null;
     if (k !== proj.cur) { side.zoom = top.zoom = 1; side.pan = [0, 0]; top.pan = [0, 0]; side.zb = top.zb = null; }
     proj.cur = k; st = proj.pieces[k]; side.sel = top.sel = null;
     D = RC.derive(st); derOthers(); persist(); renderTabs(); renderPanel(); renderSel("side", null);
@@ -609,11 +620,16 @@
     else { const f = act === "in" ? 1.3 : 1 / 1.3; if (v) v.zoomAt(W / 2, H / 2, f); else zoom3At(W / 2, H / 2, f); }
   }));
   $("moveBtn").onclick = () => {
-    moveMode = !moveMode; $("moveBtn").setAttribute("aria-pressed", String(moveMode));
-    $("selSide").textContent = moveMode ? "Trascina un pezzo (anche uno grigio) per spostarlo tutto intero. Ripremi «Sposta pezzo» per tornare a modificare i punti." : "Nessun punto selezionato.";
+    moveMode = !moveMode; $("moveBtn").setAttribute("aria-pressed", String(moveMode)); lastMoved = null; nudgeRun = null;
+    $("selSide").textContent = moveMode ? `Trascina un pezzo (anche uno grigio) per spostarlo tutto intero, oppure usa le frecce per spostare «${st.name}» (Maiusc + frecce: 5 cm). Ripremi «Sposta pezzo» per tornare a modificare i punti.` : "Nessun punto selezionato.";
   };
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && document.querySelector(".board.max")) { setMax(null); return; }
+    // Sposta pezzo attivo: le frecce muovono il pezzo (ma non quando il mouse e' sulla vista 3D o si scrive in un campo)
+    const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key];
+    if (moveMode && dir && !e.ctrlKey && !e.metaKey && !e.altKey && !over3 && document.activeElement !== c3 && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
+      e.preventDefault(); const k = e.shiftKey ? 5 : $("snap").checked ? 0.5 : 0.1; nudge(dir[0] * k, dir[1] * k); return;
+    }
     if (!e.ctrlKey && !e.metaKey && !e.altKey && key3(e)) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); return; }
     if ((e.key === "Delete" || e.key === "Backspace") && !/INPUT|SELECT/.test(document.activeElement.tagName)) {
