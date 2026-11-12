@@ -65,3 +65,5 @@ Richieste utente (sessione 4, 2026-11-12):
 [ ] Eventuale: riquadro "vista da davanti" per vedere apertura e rotazione mentre si modificano.
 [DONE] Sposta pezzo con le frecce: frecce = 0,5 cm (0,1 senza aggancio), Maiusc + frecce = 5 cm; muove l'ultimo pezzo
        trascinato o quello della scheda aperta; pressioni ravvicinate = un solo Annulla. Col mouse sulla vista 3D le frecce restano al 3D.
+[DONE] Pelle anche per corna, orecchie e coda: sagoma piena con righe parallele (giri di corda ogni 1,2 cm, di traverso
+       alla direzione lunga della sagoma); corna marroni.

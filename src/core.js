@@ -301,6 +301,26 @@
     return rows;
   }
 
+  // pelle di una sagoma piatta (solo 3D): il contorno pieno e righe parallele ogni `step` cm (giri di corda),
+  // di traverso rispetto alla direzione più lunga della sagoma. Tutto in coordinate (x, y) della vista di lato.
+  function flatSkin(D, step) {
+    if (!D || !D.ok || !D.flat) return null;
+    step = step || 1.2;
+    const P = D.V, n = P.length - 1;
+    let mx = 0, my = 0; for (let i = 0; i < n; i++) { mx += P[i][0]; my += P[i][1]; } mx /= n; my /= n;
+    let sxx = 0, syy = 0, sxy = 0;
+    for (let i = 0; i < n; i++) { const dx = P[i][0] - mx, dy = P[i][1] - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; }
+    const th = 0.5 * Math.atan2(2 * sxy, sxx - syy), e = [Math.cos(th), Math.sin(th)], f = [-e[1], e[0]];   // e = direzione lunga
+    const loc = P.map(p => [(p[0] - mx) * e[0] + (p[1] - my) * e[1], (p[0] - mx) * f[0] + (p[1] - my) * f[1]]);
+    const back = (u, v) => [mx + u * e[0] + v * f[0], my + u * e[1] + v * f[1]];
+    const us = loc.map(p => p[0]), u0 = Math.min(...us), u1 = Math.max(...us), stripes = [];
+    for (let u = u0 + step / 2; u < u1; u += step) {
+      const vs = cut(loc, 0, u);
+      for (let k = 0; k + 1 < vs.length; k += 2) stripes.push([back(u, vs[k]), back(u, vs[k + 1])]);
+    }
+    return { poly: P.slice(0, -1), stripes };
+  }
+
   // ---------------------------------------------------------- pezzi di partenza
   function bodyFromX(v, yh, topX, ringsX, n) {
     const xs = v.map(p => p[0]);
@@ -777,6 +797,6 @@
   }
 
   root.RennaCore = { TYPES, ORDER, catmull, length, cut, derive, makePdf, planTiles, normPiece, defaultProject, migrate,
-                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA, skin, swapSides, isFlat, flatWorld };
+                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA, skin, swapSides, isFlat, flatWorld, flatSkin };
   if (typeof module !== "undefined") module.exports = root.RennaCore;
 })(typeof window !== "undefined" ? window : globalThis);

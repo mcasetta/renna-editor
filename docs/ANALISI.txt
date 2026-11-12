@@ -53,3 +53,6 @@ Decisione 2026-10-21 (sessione 2) - idee valutate e scartate dall'utente:
 - Corna e orecchie: pair = true, nel PDF una sola sagoma con "2 pezzi uguali", il filo totale conta 2 volte.
 - Il filo comincia nel punto del profilo piu' vicino al pivot (la giunzione resta dove si lega).
 - Vista 3D: punto guardato e scala iniziali alzati (TGT0 y 54, base3 su 112 cm di altezza) perche' le corna arrivano a ~108 cm.
+- Pelle delle sagome piatte (sessione 4): un poligono pieno per lato + righe parallele ogni 1,2 cm, perpendicolari
+  alla direzione principale della sagoma (analisi delle componenti principali dei punti). Corna marroni, il resto color corda.
+  Ogni sagoma e' un solo poligono nell'ordinamento per profondita': dove tocca la testa l'ordine puo' sbagliare un po'.

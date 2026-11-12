@@ -400,8 +400,21 @@
   }
   // pelle: griglia di punti per pezzo, ricalcolata solo quando il pezzo cambia (D nuovo)
   const skinCache = new WeakMap();
-  function skinOf(d, pc) { if (!skinCache.has(d)) skinCache.set(d, RC.skin(pc, d)); return skinCache.get(d); }
+  function skinOf(d, pc) { if (!skinCache.has(d)) skinCache.set(d, d.flat ? RC.flatSkin(d) : RC.skin(pc, d)); return skinCache.get(d); }
   function skinPolys(P, d, pc, out) {
+    if (d.flat) {   // sagoma piatta: contorno pieno + righe parallele; le corna marroni
+      const fs = skinOf(d, pc); if (!fs) return;
+      const tone = pc.type === "corna" ? "antler" : "rope";
+      d.sides.forEach(sg => {
+        const W = (p) => P(...d.toWorld(p[0], p[1], sg));
+        const q = fs.poly.map(W), o = W(pc.pivot), a = W([pc.pivot[0] + 1, pc.pivot[1]]), b = W([pc.pivot[0], pc.pivot[1] + 1]);
+        const ux = a[0] - o[0], uy = a[1] - o[1], uz = a[2] - o[2], vx = b[0] - o[0], vy = b[1] - o[1], vz = b[2] - o[2];
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz) || 1;
+        const lit = Math.abs((-0.35 * nx + 0.45 * ny - 0.82 * nz) / nl);
+        out.push({ poly: q, z: q.reduce((s, p) => s + p[2], 0) / q.length, lit, tone, stripes: fs.stripes.map(s => [W(s[0]), W(s[1])]) });
+      });
+      return;
+    }
     const rows = skinOf(d, pc); if (!rows) return;
     const Q = rows.map(r => r.map(p => P(...p))), M = Q[0].length;
     for (let i = 1; i < Q.length; i++) for (let k = 0; k < M; k++) {
@@ -460,8 +473,14 @@
     for (const l of lines) {
       if (l.poly) {
         const q = l.poly.map(S), L = Math.round(42 + 40 * l.lit);
-        x3.globalAlpha = 1; x3.fillStyle = `hsl(33, 38%, ${L}%)`; x3.strokeStyle = x3.fillStyle; x3.lineWidth = 0.6 * dpr;
-        x3.beginPath(); x3.moveTo(...q[0]); x3.lineTo(...q[1]); x3.lineTo(...q[2]); x3.lineTo(...q[3]); x3.closePath(); x3.fill(); x3.stroke();
+        x3.globalAlpha = 1; x3.lineWidth = 0.6 * dpr;
+        x3.fillStyle = l.tone === "antler" ? `hsl(25, 45%, ${Math.round(22 + 22 * l.lit)}%)` : `hsl(33, 38%, ${L}%)`; x3.strokeStyle = x3.fillStyle;
+        x3.beginPath(); q.forEach((p, i) => i ? x3.lineTo(...p) : x3.moveTo(...p)); x3.closePath(); x3.fill(); x3.stroke();
+        if (l.stripes) {   // righe parallele = giri di corda sulla sagoma
+          x3.strokeStyle = l.tone === "antler" ? `hsl(22, 40%, ${Math.round(12 + 12 * l.lit)}%)` : `hsl(28, 35%, ${L - 22}%)`; x3.lineWidth = ropeW; x3.beginPath();
+          for (const s of l.stripes) { const a = S(s[0]), b = S(s[1]); x3.moveTo(...a); x3.lineTo(...b); } x3.stroke();
+          continue;
+        }
         if (l.rope) { x3.strokeStyle = `hsl(28, 35%, ${L - 22}%)`; x3.lineWidth = ropeW; x3.beginPath(); x3.moveTo(...q[2]); x3.lineTo(...q[3]); x3.stroke(); }
         continue;
       }

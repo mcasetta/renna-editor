@@ -89,3 +89,5 @@ File modificati: index.html, src/core.js, src/app.js, test/core.test.mjs, CLAUDE
 Sessione 4 (continua):
 - Sposta pezzo: anche con le frecce (0,5 cm, Maiusc = 5 cm), sull'ultimo pezzo trascinato o su quello della scheda aperta.
   Provato in Chrome headless (spostamento e Annulla). File: src/app.js, index.html, docs/*.
+- Pelle per le sagome piatte: RC.flatSkin (contorno + righe parallele ogni 1,2 cm perpendicolari alla direzione principale),
+  disegno in app.js come poligono unico per lato; corna marroni. Provato in Chrome headless (3/4 e fronte). File: src/core.js, src/app.js.
