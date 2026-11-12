@@ -5,7 +5,8 @@
   const $ = (id) => document.getElementById(id);
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const KEY = "renna-progetto-v2", OLDKEY = "renna-corpo-v1";
-  const SHORT = { corpo: "Corpo", testa: "Collo e testa", AS: "Ant. sinistra", AD: "Ant. destra", PS: "Post. sinistra", PD: "Post. destra" };
+  const SHORT = { corpo: "Corpo", testa: "Collo e testa", AS: "Ant. sinistra", AD: "Ant. destra", PS: "Post. sinistra", PD: "Post. destra",
+                  corna: "Corna", orecchie: "Orecchie", coda: "Coda" };
   let proj = null;
   try { const s = localStorage.getItem(KEY); if (s) proj = RC.migrate(JSON.parse(s)); } catch (e) {}
   if (!proj) { try { const s = localStorage.getItem(OLDKEY); if (s) proj = RC.migrate(JSON.parse(s)); } catch (e) {} }
@@ -25,7 +26,7 @@
     grid: g("--grid"), grid5: g("--grid5"), wire: g("--wire"), horiz: g("--horiz"), ring: g("--ring"), tie: g("--tie"),
     start: g("--start"), sel: g("--sel"), muted: g("--muted"), ink: g("--ink"), panel: g("--panel"), line: g("--line") }; };
   const snap = (v) => $("snap").checked ? Math.round(v * 2) / 2 : Math.round(v * 10) / 10;
-  const ax = () => D.ax || RC.axisInfo(st.axis);
+  const flat = () => !!D.flat;
 
   // ------------------------------------------------ vista 2D generica
   function View(canvas, opts) {
@@ -173,7 +174,9 @@
   // sposta tutto il pezzo (profilo, asse, anelli) di dx, dy rispetto alla copia o; il secondo anello (s, w) non cambia
   function shiftPiece(pc, o, dx, dy) {
     const sh = (p) => [+(p[0] + dx).toFixed(2), +(p[1] + dy).toFixed(2)];
-    pc.v = o.v.map(sh); pc.axis = o.axis.map(sh);
+    pc.v = o.v.map(sh);
+    if (o.pivot) { pc.pivot = sh(o.pivot); return; }   // sagoma piatta: profilo e punto di attacco
+    pc.axis = o.axis.map(sh);
     pc.rings = o.rings.map(r => (r && r.p1 && r.p2) ? Object.assign({}, r, { p1: sh(r.p1), p2: sh(r.p2) }) : r);
   }
   let moveMode = false;
@@ -181,6 +184,7 @@
   function setSA(rg, s, a) { const q = RC.ringFromSA(D.V, D.ax, D.s0, s, a); if (q) { rg.p1 = q.p1; rg.p2 = q.p2; } }
   const bboxV = () => {
     const xs = st.v.map(p => p[0]), ys = st.v.map(p => p[1]);
+    if (RC.isFlat(st)) return [Math.min(...xs) - 10, Math.min(...ys) - 9, Math.max(...xs) + 10, Math.max(...ys) + 6];   // un po' di testa/corpo attorno
     const y0 = st.type === "zampa" ? Math.min(-1, Math.min(...ys) - 4) : Math.min(...ys) - 4;
     return [Math.min(...xs) - 6, y0, Math.max(...xs) + 6, Math.max(...ys) + 7];
   };
@@ -188,9 +192,9 @@
   // ------------------------------------------------ vista di lato
   const side = new View($("cvSide"), {
     bounds: bboxV,
-    points: () => st.v.map((p, i) => ({ kind: "v", i, p })).concat(st.axis.map((p, i) => ({ kind: "axis", i, p }))),
+    points: () => st.v.map((p, i) => ({ kind: "v", i, p })).concat(flat() ? [{ kind: "pivot", i: 0, p: st.pivot }] : st.axis.map((p, i) => ({ kind: "axis", i, p }))),
     onSel: (pt) => renderSel("side", pt),
-    movePt: (pt, x, y) => { (pt.kind === "v" ? st.v : st.axis)[pt.i] = [x, y]; },
+    movePt: (pt, x, y) => { if (pt.kind === "pivot") st.pivot = [x, y]; else (pt.kind === "v" ? st.v : st.axis)[pt.i] = [x, y]; },
     // "Sposta pezzo" (o Maiusc): si prende il pezzo sotto il mouse, prima quello attivo poi quelli grigi
     grab: (e, v) => {
       if (!moveMode && !e.shiftKey) return null;
@@ -206,19 +210,20 @@
       } };
     },
     insert: (x, y) => {
-      const rv = nearestSeg(st.v, x, y, true), ra = nearestSeg(st.axis, x, y, false);
+      const rv = nearestSeg(st.v, x, y, true), ra = flat() ? { d: 1e9 } : nearestSeg(st.axis, x, y, false);
       if (Math.min(rv.d, ra.d) > 3) return null;
       pushHist();
       if (ra.d < rv.d) { st.axis.splice(ra.i + 1, 0, [x, y]); changed(); return { kind: "axis", i: ra.i + 1, p: [x, y] }; }
       st.v.splice(rv.i + 1, 0, [x, y]); changed(); return { kind: "v", i: rv.i + 1, p: [x, y] };
     },
     del: (pt) => {
-      const arr = pt.kind === "v" ? st.v : st.axis; if (arr.length <= (pt.kind === "v" ? 5 : 2)) return;
+      if (pt.kind === "pivot") return;
+      const arr = pt.kind === "v" ? st.v : st.axis; if (arr.length <= (pt.kind === "v" ? (flat() ? 3 : 5) : 2)) return;
       pushHist(); arr.splice(pt.i, 1); side.sel = null; changed(); renderSel("side", null);
     },
     handles: () => {
       const hs = [];
-      if (!D.ok) return hs;
+      if (!D.ok || flat()) return hs;
       st.rings.forEach((rg) => {
         const r = dring(rg);
         const pts = r ? [[r.topKey, r.pt], [r.topKey === "p1" ? "p2" : "p1", r.pb]] : [["p1", rg.p1], ["p2", rg.p2]];
@@ -245,6 +250,16 @@
       ctx.fillText("◀ muso", v.X(b[0]) + 30 * v.dpr, v.Y(b[3]) + 14 * v.dpr);
       if (b[1] < 0) v.path([[b[0], 0], [b[2], 0]], C.muted, 1, [2, 3]);
       Object.values(others).forEach(o => v.path(o.V, C.muted, 1.4, null, 0.35));
+      if (flat()) {   // sagoma piatta: solo il profilo e il punto di attacco
+        if (D.ok) v.path(D.V, C.wire, 3);
+        v.path(st.v.concat([st.v[0]]), C.muted, 1, [2, 3]);
+        if (D.ok) v.dot(D.V[0][0], D.V[0][1], C.start, 4, true);
+        st.v.forEach((p, i) => v.dot(p[0], p[1], v.isSel("v", i) ? C.sel : C.wire, v.isSel("v", i) ? 6.5 : 5, v.isSel("v", i)));
+        const ps = v.isSel("pivot", 0);
+        v.dot(st.pivot[0], st.pivot[1], ps ? C.sel : C.tie, ps ? 7 : 5.5, true, true);
+        v.label("attacco", st.pivot[0], st.pivot[1], C.tie, 10, 14);
+        return;
+      }
       v.path(st.axis, C.horiz, 1.5, [6, 4]);
       if (D.ok) {
         D.rings.forEach(r => { v.path([r.pb, r.pt], C.ring, 2.2);
@@ -262,10 +277,10 @@
   });
 
   // ------------------------------------------------ secondo anello (s, z)
-  const bboxT = () => { const S = D.ok ? D.S : 50; const wm = Math.max(6, ...st.top.map(p => p[1])); return [-5, -wm - 3.5, S + 5, wm + 3.5]; };
+  const bboxT = () => { const S = D.ok && D.S ? D.S : 50; const wm = Math.max(6, ...(st.top || []).map(p => p[1])); return [-5, -wm - 3.5, S + 5, wm + 3.5]; };
   const top = new View($("cvTop"), {
     bounds: bboxT,
-    points: () => st.top.map((p, i) => ({ kind: "top", i, p })),
+    points: () => flat() ? [] : st.top.map((p, i) => ({ kind: "top", i, p })),
     onSel: (pt) => renderSel("top", pt),
     movePt: (pt, x, y) => { st.top[pt.i] = [x, Math.max(0.5, Math.abs(y))]; },
     insert: (x, y) => {
@@ -276,9 +291,10 @@
       const i = st.top.findIndex(p => p[0] === x); return { kind: "top", i, p: st.top[i] };
     },
     del: (pt) => { if (st.top.length <= 3) return; pushHist(); st.top.splice(pt.i, 1); top.sel = null; changed(); renderSel("top", null); },
-    handles: () => st.rings.map((rg) => { const r = dring(rg); return { cursor: "ew-resize", test: (px, py, v) => !!r && Math.abs(px - v.X(r.s)) < 6 * v.dpr && !v.near(px, py),
+    handles: () => flat() ? [] : st.rings.map((rg) => { const r = dring(rg); return { cursor: "ew-resize", test: (px, py, v) => !!r && Math.abs(px - v.X(r.s)) < 6 * v.dpr && !v.near(px, py),
       move: (x) => { if (r) setSA(rg, Math.max(0.5, Math.min((D.S || 50) - 0.5, x)), r.a); } }; }),
     draw: (v, C) => {
+      if (flat()) return;
       const b = v.area(bboxT()); v.grid(b, C);
       const ctx = v.ctx; ctx.fillStyle = C.muted; ctx.font = `500 ${10 * v.dpr}px Archivo, sans-serif`;
       ctx.fillText("fianco sinistro", v.X(b[0]) + 30 * v.dpr, v.Y(b[3]) + 14 * v.dpr);
@@ -300,9 +316,9 @@
   const c3 = $("cv3d"), x3 = c3.getContext("2d"); let yaw = -0.75, pitch = 0.32, drag3 = null;
   new ResizeObserver(() => { const r = c3.getBoundingClientRect(), d = window.devicePixelRatio || 1; c3.width = Math.round(r.width * d); c3.height = Math.round(r.height * d); draw3d(); }).observe(c3);
   // tgt3 = punto (cm) al centro del riquadro: la vista gira attorno a lui, quindi zoomando sul muso il muso resta in vista
-  const TGT0 = [44, 42, 0];
+  const TGT0 = [44, 54, 0];
   let zoom3 = 1, tgt3 = TGT0.slice(), skin3 = false;
-  const base3 = () => Math.min(c3.width / 86, c3.height / 80);
+  const base3 = () => Math.min(c3.width / 92, c3.height / 112);   // in vista anche le corna
   // assi del riquadro (destra, su) in coordinate del mondo, per la rotazione attuale
   const axes3 = () => { const cyw = Math.cos(yaw), syw = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch); return [[cyw, 0, syw], [syw * sp, cp, -cyw * sp]]; };
   // sposta il punto guardato di (a, b) cm del riquadro (a verso destra, b verso l'alto)
@@ -360,6 +376,11 @@
     zoom3At((e.clientX - r.left) * d, (e.clientY - r.top) * d, wheelF(e));
   }, { passive: false });
   function pieceLines(P, d, pc, color, w, alpha, out) {
+    if (d.flat) {   // sagoma piatta: per le coppie anche il gemello specchiato sull'altro fianco
+      if (!d.ok) return;
+      d.sides.forEach(sg => { const pts = d.V.map(p => d.toWorld(p[0], p[1], sg)); for (let i = 1; i < pts.length; i++) out.push(seg(P, pts[i - 1], pts[i], color.wire, w, alpha)); });
+      return;
+    }
     if (!d.ok) { const z = pc.zoff; for (let i = 1; i < d.V.length; i++) out.push(seg(P, [d.V[i - 1][0], d.V[i - 1][1], z], [d.V[i][0], d.V[i][1], z], color.wire, w, alpha)); return; }
     const z0 = pc.zoff;
     const add = (pts, col) => { for (let i = 1; i < pts.length; i++) out.push(seg(P, pts[i - 1], pts[i], col, w, alpha)); };
@@ -465,18 +486,18 @@
     $("selSide").innerHTML = ""; $("selTop").innerHTML = "";
     const box = which === "side" ? $("selSide") : $("selTop");
     if (!pt) { box.textContent = "Nessun punto selezionato."; drawAll(); return; }
-    const arr = pt.kind === "v" ? st.v : pt.kind === "axis" ? st.axis : st.top;
-    const what = pt.kind === "v" ? "Punto del profilo" : pt.kind === "axis" ? "Punto dell'asse" : "Punto";
+    const arr = pt.kind === "v" ? st.v : pt.kind === "axis" ? st.axis : pt.kind === "pivot" ? [st.pivot] : st.top;
+    const what = pt.kind === "v" ? "Punto del profilo" : pt.kind === "axis" ? "Punto dell'asse" : pt.kind === "pivot" ? "Punto di attacco" : "Punto";
     const lx = pt.kind === "top" ? "s" : "x", ly = pt.kind === "top" ? "mezza larghezza" : "y";
-    box.innerHTML = `<span>${what} ${pt.i + 1}</span>
+    box.innerHTML = `<span>${what}${pt.kind === "pivot" ? "" : " " + (pt.i + 1)}</span>
       <label>${lx} <input id="px" type="number" step="0.5" value="${arr[pt.i][0]}"></label>
       <label>${ly} <input id="py" type="number" step="0.5" value="${arr[pt.i][1]}"></label>
-      <button type="button" id="pdel">Elimina punto</button>`;
+      ${pt.kind === "pivot" ? "" : '<button type="button" id="pdel">Elimina punto</button>'}`;
     $("px").onchange = $("py").onchange = () => {
       pushHist(); const x = parseFloat($("px").value), y = parseFloat($("py").value);
-      if (isFinite(x) && isFinite(y)) { arr[pt.i] = [x, pt.kind === "top" ? Math.max(0.5, Math.abs(y)) : y]; changed(); }
+      if (isFinite(x) && isFinite(y)) { if (pt.kind === "pivot") st.pivot = [x, y]; else arr[pt.i] = [x, pt.kind === "top" ? Math.max(0.5, Math.abs(y)) : y]; changed(); }
     };
-    $("pdel").onclick = () => (which === "side" ? side : top).o.del(pt);
+    if ($("pdel")) $("pdel").onclick = () => (which === "side" ? side : top).o.del(pt);
     drawAll();
   }
   function renderTabs() {
@@ -489,9 +510,11 @@
     const sel = $("copyFrom"); sel.innerHTML = "";
     RC.ORDER.forEach(k => { if (k !== proj.cur && proj.pieces[k].type === st.type) { const o = document.createElement("option"); o.value = k; o.textContent = proj.pieces[k].name; sel.appendChild(o); } });
     $("copyFrom").disabled = $("copyBtn").disabled = !sel.options.length;
-    $("cvSide").style.aspectRatio = st.type === "zampa" ? "16 / 12" : st.type === "testa" ? "16 / 10" : "";
+    $("cvSide").style.aspectRatio = st.type === "zampa" ? "16 / 12" : st.type === "testa" ? "16 / 10" : RC.TYPES[st.type].flat ? "16 / 12" : "";
     const T = RC.TYPES[st.type];
     $("titleA").textContent = `Di lato · ${T.loopA.toLowerCase()}`;
+    // le sagome piatte non hanno secondo anello né anelli trasversali
+    $("cvTop").closest(".board").hidden = !!T.flat;
     $("titleB").textContent = `${T.loopB} · ${T.bView}`;
     $("hintB").textContent = st.type === "corpo" ? "simmetrico: modifichi la metà superiore, l'altra si specchia" : "disteso lungo l'asse · simmetrico: modifichi la metà superiore";
     $("cvTop").style.aspectRatio = st.type === "testa" ? "16 / 5" : "";
@@ -505,10 +528,15 @@
   function renderPanel() {
     $("rowYh").hidden = !(st.type === "corpo" && straightAxis());
     if (!$("rowYh").hidden) $("yh").value = st.axis[0][1].toFixed(1);
-    $("rowZ").hidden = st.type !== "zampa"; $("zoff").value = Math.abs(st.zoff).toFixed(1);
-    $("n").value = st.n; $("nVal").textContent = st.n.toFixed(2);
+    const fl = flat();
+    $("rowZ").hidden = !(st.type === "zampa" || (fl && st.pair)); $("zoff").value = Math.abs(st.zoff).toFixed(1);
+    $("rowZhelp").textContent = fl ? "Quanto il punto di attacco sta verso il fianco rispetto al centro della renna (vale per tutte e due le sagome)." : "Quanto il piano della zampa sta verso il suo fianco rispetto al centro della renna.";
+    $("rowOpen").hidden = $("rowTurn").hidden = !fl;
+    $("rowN").hidden = $("ringsBox").hidden = fl;
+    if (fl) { $("open").value = st.open; $("turn").value = st.turn; }
+    else { $("n").value = st.n; $("nVal").textContent = st.n.toFixed(2); }
     const rs = $("rings"); rs.innerHTML = "";
-    st.rings.map((rg, k) => [rg, k, dring(rg)]).sort((a, b) => (a[2] ? a[2].s : 1e9) - (b[2] ? b[2].s : 1e9)).forEach(([rg, k, r], j) => {
+    (fl ? [] : st.rings).map((rg, k) => [rg, k, dring(rg)]).sort((a, b) => (a[2] ? a[2].s : 1e9) - (b[2] ? b[2].s : 1e9)).forEach(([rg, k, r], j) => {
       const row = document.createElement("div"); row.className = "ringrow";
       row.innerHTML = `<b>A${j + 1}</b><span class="dim">${r ? `${(r.ut + r.ub).toFixed(1)} × ${(2 * r.w).toFixed(1)} cm` : "fuori dal pezzo"}</span>
         <label>s <input type="number" step="0.5" value="${r ? r.s.toFixed(1) : ""}" id="rs${k}" ${r ? "" : "disabled"}></label>
@@ -524,12 +552,12 @@
     if (!D.ok) sum.innerHTML = "";
     else {
       const T = RC.TYPES[st.type];
-      let h = `<tr><td><span class="tag" style="background:var(--wire)"></span>${T.loopA}</td><td class="n">${D.LV.toFixed(0)} + 5 cm</td></tr>
+      let h = fl ? `<tr><td><span class="tag" style="background:var(--wire)"></span>${T.loopA}${D.count > 1 ? ` × ${D.count}` : ""}</td><td class="n">${D.LV.toFixed(0)} + 5 cm${D.count > 1 ? " l'una" : ""}</td></tr>` : `<tr><td><span class="tag" style="background:var(--wire)"></span>${T.loopA}</td><td class="n">${D.LV.toFixed(0)} + 5 cm</td></tr>
         <tr><td><span class="tag" style="background:var(--horiz)"></span>${T.loopB}</td><td class="n">${D.LH.toFixed(0)} + 5 cm</td></tr>`;
-      D.rings.forEach(r => { h += `<tr><td><span class="tag" style="background:var(--ring)"></span>Anello ${r.n}</td><td class="n">${r.L.toFixed(0)} + 5 cm</td></tr>`; });
+      if (!fl) D.rings.forEach(r => { h += `<tr><td><span class="tag" style="background:var(--ring)"></span>Anello ${r.n}</td><td class="n">${r.L.toFixed(0)} + 5 cm</td></tr>`; });
       h += `<tr class="tot"><td>Totale ${st.name.toLowerCase()}</td><td class="n">≈ ${(D.tot / 100).toFixed(1)} m</td></tr>`;
       let all = 0, okAll = true; RC.ORDER.forEach(k => { const d = k === proj.cur ? D : others[k]; if (d.ok) all += d.tot; else okAll = false; });
-      h += `<tr><td>Tutta la renna (6 pezzi)</td><td class="n">${okAll ? "≈ " + (all / 100).toFixed(1) + " m" : "–"}</td></tr>`;
+      h += `<tr><td>Tutta la renna</td><td class="n">${okAll ? "≈ " + (all / 100).toFixed(1) + " m" : "–"}</td></tr>`;
       sum.innerHTML = h;
     }
     const w = $("warn"); if (D.warn.length) { w.hidden = false; w.innerHTML = D.warn.map(t => `<div>${t}</div>`).join(""); } else w.hidden = true;
@@ -544,7 +572,9 @@
   $("pname").onchange = () => { proj.name = $("pname").value.trim() || "renna"; persist(); };
   $("yh").onchange = (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { pushHist(); st.axis[0][1] = st.axis[1][1] = v; changed(); } };
   // zampe sinistre a z positivo (fianco sinistro della renna)
-  $("zoff").onchange = (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { pushHist(); const sg = (proj.cur === "AS" || proj.cur === "PS") ? 1 : -1; st.zoff = sg * Math.abs(v); changed(); } };
+  $("zoff").onchange = (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { pushHist(); const sg = (proj.cur === "AD" || proj.cur === "PD") ? -1 : 1; st.zoff = sg * Math.abs(v); changed(); } };
+  // sagome piatte: apertura (vista da davanti) e rotazione (vista dall'alto), in gradi
+  ["open", "turn"].forEach(id => { $(id).onchange = (e) => { const v = parseFloat(e.target.value); if (isFinite(v)) { pushHist(); st[id] = Math.max(-90, Math.min(90, v)); changed(); } }; });
   $("n").addEventListener("pointerdown", () => pushHist());
   $("n").addEventListener("keydown", () => pushHist());
   $("n").oninput = (e) => { st.n = parseFloat(e.target.value); changed(); };
@@ -607,7 +637,7 @@
     const k = $("copyFrom").value; if (!k) return;
     ask(`Copiare in «${st.name}» la forma di «${proj.pieces[k].name}»?`, () => {
       pushHist(); const src = clone(proj.pieces[k]);
-      Object.assign(st, { v: src.v, axis: src.axis, top: src.top, rings: src.rings, n: src.n });
+      Object.assign(st, src.pivot ? { v: src.v, pivot: src.pivot } : { v: src.v, axis: src.axis, top: src.top, rings: src.rings, n: src.n });
       selectPiece(proj.cur); status(`Forma copiata da «${src.name}».`);
     });
   };

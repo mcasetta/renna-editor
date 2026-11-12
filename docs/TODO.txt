@@ -27,7 +27,7 @@ Punti fragili emersi nell'analisi iniziale (sessione 1, 2026-10-20):
        -> tools/anteprima-pdf.mjs: salva una pagina come PNG usando Chrome + pdf.js da cdnjs.
 
 Idee future:
-[ ] Corna, orecchie, coda.
+[DONE] Corna, orecchie, coda (sessione 4): sagome piatte con punto di attacco, apertura e rotazione.
 
 Richieste utente (sessione 2, 2026-10-21):
 [RISOLTO] Ripristino/eliminazione dei punti salvati "non funzionano".
@@ -57,3 +57,9 @@ Richieste utente (sessione 3, 2026-10-22):
        vista dall'alto, bussola 3D, PDF (SIN./DES., FIANCO SINISTRO/DESTRO, distanza dal centro).
        I progetti vecchi (senza lati: "animale") si aprono con le zampe scambiate di nome: la forma resta identica.
        Risolve anche la nota del punto 7.
+
+Richieste utente (sessione 4, 2026-11-12):
+[DONE] Corna, orecchie e coda nel programma (editor, 3D, PDF).
+[ ] Sistemare corna, orecchie e coda sui progetti reali (renna_matte, renna_leroymerlin) con "Sposta pezzo".
+[ ] Eventuale: corna fatte con un filo singolo e rametti (non contorno chiuso), se la sagoma chiusa non convince.
+[ ] Eventuale: riquadro "vista da davanti" per vedere apertura e rotazione mentre si modificano.

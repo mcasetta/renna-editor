@@ -289,16 +289,18 @@ ip route show | grep default | awk '{print $3}'
 ## Stato Progetto (LEGGERE ALL'INIZIO DI OGNI SESSIONE)
 
 ### Fase Corrente
-Editor funzionante (6 pezzi: corpo, collo e testa, 4 zampe) portato da claude.ai a Claude Code.
-Prossima fase: correzione dei punti fragili emersi nell'analisi iniziale (vedi `docs/TODO.txt`).
+Editor funzionante con 9 pezzi: corpo, collo e testa, 4 zampe (a croce) + corna, orecchie, coda (sagome piatte).
+Prossimi passi in `docs/TODO.txt`.
 
 ### Ultimo Aggiornamento
-2026-10-21 — sessione 2 (zoom, riquadri ingranditi, sposta pezzo, conferma punti salvati)
+2026-11-12 — sessione 4 (corna, orecchie e coda)
 
 ### Cosa è stato fatto
 - Lettura del codice, `npm test` verde, primo commit git locale.
 - CLAUDE.md adeguato al template di `utility/`.
 - Sessione 2: zoom, riquadri ingranditi, sposta pezzo, conferma punti salvati, vista 3D piu' leggibile.
+- Sessione 3: 3D navigabile, pelle, sinistra/destra della renna, progetto renna_leroymerlin.
+- Sessione 4: corna, orecchie e coda come sagome piatte.
 
 ### Prossimi Passi
 Vedi `docs/TODO.txt`.
@@ -352,7 +354,8 @@ renna-editor/                      # repo git (pubblico)
 App per progettare una renna in fil di ferro (circa 1 m) e stampare sagome 1:1 su A4.
 L'utente piega il filo a mano sopra i fogli stampati: **precisione delle misure e chiarezza delle stampe contano più di tutto**.
 Ogni pezzo è fatto "a croce": anello laterale + secondo anello (orizzontale per il corpo, frontale per zampe e testa)
-disteso lungo un asse piegabile + anelli trasversali. Corna, orecchie e coda non ci sono ancora.
+disteso lungo un asse piegabile + anelli trasversali. Corna, orecchie e coda invece sono **sagome piatte**:
+un solo anello chiuso, legato a testa/corpo nel punto di attacco; corna e orecchie sono 2 pezzi uguali (uno specchiato).
 
 ### Come lavorare con l'utente
 - Parlare in **italiano**; interfaccia e testi dei PDF restano in italiano.
@@ -377,7 +380,7 @@ circostante; non tradurre il codice esistente in inglese senza che l'utente lo c
 
 ### Modello dati (progetto salvato in .json e in localStorage `renna-progetto-v2`)
 ```
-{ name, lati: "animale", cur, pieces: { corpo, testa, AS, AD, PS, PD }, snapshots? }
+{ name, lati: "animale", cur, pieces: { corpo, testa, AS, AD, PS, PD, corna, orecchie, coda }, snapshots? }
 pezzo = {
   name, type: "corpo" | "zampa" | "testa",
   v:    [[x,y]...]   punti di controllo del profilo laterale (spline chiusa Catmull-Rom); x avanti→coda, y altezza da terra
@@ -387,8 +390,18 @@ pezzo = {
   n:    esponente super-ellisse degli anelli (2 = ellisse, più alto = più squadrato)
   zoff: spostamento laterale (z) del piano del pezzo; z positivo = fianco SINISTRO della renna, zampe sinistre positive
 }
+sagoma piatta = {   // TYPES[type].flat: corna, orecchie, coda
+  name, type: "corna" | "orecchie" | "coda",
+  v:     [[x,y]...]  profilo chiuso disegnato nella vista di lato, nella sua posizione con apertura e rotazione 0
+  pivot: [x,y]       punto di attacco (il filo comincia li' vicino)
+  zoff:  distanza del punto di attacco dal centro (>= 0, il gemello destro e' a -zoff)
+  open:  gradi di apertura verso l'esterno attorno all'asse avanti-dietro per il pivot (vista da davanti)
+  turn:  gradi di rotazione attorno alla verticale, + = parte davanti verso l'esterno (vista dall'alto)
+  pair:  true = 2 pezzi (sinistro + specchio destro)
+}
 ```
 Vecchi formati (`rings` con `{s,a}` o numeri, progetto con solo il corpo e `yh`) sono convertiti da `RC.migrate` / `derive`: mantieni la compatibilità.
+I progetti senza corna/orecchie/coda (fino alla sessione 3) prendono quelli di partenza (lo fa `app.js` per ogni pezzo mancante di `RC.ORDER`).
 Sinistra/destra sono quelli della renna. I progetti senza `lati: "animale"` (fino alla sessione 3) avevano i nomi delle zampe
 scambiati: `RC.migrate` chiama `swapSides`, che scambia AS↔AD e PS↔PD senza spostare nessun filo.
 I punti salvati sono in localStorage `renna-punti-v1` come `{id, name, t, data: JSON del progetto}`.
@@ -396,6 +409,8 @@ I punti salvati sono in localStorage `renna-punti-v1` come `{id, name, t, data: 
 ### Flusso
 - `RC.derive(pezzo)` → tutto il calcolato: curve `V` (profilo) e `H` (secondo anello, coordinate s,z), incroci `c0/c1`,
   pieghe dell'asse `bends`, anelli con misure (`ut`, `ub`, `w`, `curve`, `L`), lunghezze, avvisi (`warn`), `ok`.
+- Sagome piatte: `derive` → `deriveFlat`: `{ flat: true, V, LV, count, tot, sides, toWorld(x, y, sg) }` (niente H, anelli, asse).
+  Nel PDF: riepilogo + sagoma su fogli con il punto ATTACCO. Nell'app il riquadro del secondo anello e gli anelli trasversali si nascondono.
 - `RC.makePdf(jsPDF, pezzo)` → `{doc, pages, D, layout}`: riepilogo, anello laterale e secondo anello su più fogli (`planTiles`),
   anelli trasversali impaginati a scaffali (quelli che non stanno in un foglio verticale vanno su più fogli).
   `planTiles` può saltare un foglio se lascia fuori al massimo `GAP` = 1 cm di curva. `layout` serve ai test.

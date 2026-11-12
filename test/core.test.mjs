@@ -26,6 +26,25 @@ mkdirSync(new URL("../dist/test", import.meta.url), { recursive: true });
 for (const k of RC.ORDER) {
   const st = pr.pieces[k];
   const D = RC.derive(st);
+  if (RC.isFlat(st)) {   // corna, orecchie, coda: una sola sagoma piatta
+    assert.ok(D.ok && D.flat, `${k}: la sagoma di partenza deve essere valida`);
+    assert.equal(D.warn.length, 0, `${k}: nessun avviso atteso, trovati: ${D.warn.join("; ")}`);
+    assert.ok(D.LV > 10 && D.LV < 200, `${k}: lunghezza plausibile (${D.LV})`);
+    assert.equal(D.count, k === "coda" ? 1 : 2, `${k}: quanti pezzi`);
+    // il filo parte vicino al punto di attacco
+    assert.ok(Math.hypot(D.V[0][0] - st.pivot[0], D.V[0][1] - st.pivot[1]) < 1.5, `${k}: inizio vicino all'attacco`);
+    // il gemello destro è lo specchio del sinistro; il punto di attacco non si muove con apertura e rotazione
+    const L = D.toWorld(st.v[2][0], st.v[2][1], 1), Rr = D.toWorld(st.v[2][0], st.v[2][1], -1);
+    assert.ok(Math.abs(L[0] - Rr[0]) < 1e-9 && Math.abs(L[1] - Rr[1]) < 1e-9 && Math.abs(L[2] + Rr[2]) < 1e-9, `${k}: gemello specchiato`);
+    assert.deepEqual(D.toWorld(st.pivot[0], st.pivot[1], 1).map(v => +v.toFixed(9)), [st.pivot[0], st.pivot[1], Math.abs(st.zoff)], `${k}: attacco fermo`);
+    if (st.open > 0) assert.ok(D.toWorld(st.pivot[0], st.pivot[1] + 10, 1)[2] > Math.abs(st.zoff), `${k}: apertura verso l'esterno`);
+    const { doc, pages, layout } = RC.makePdf(jsPDF, st);
+    assert.ok(pages >= 2, `${k}: il PDF deve avere almeno 2 pagine`);
+    checkLayout(k, layout);
+    writeFileSync(new URL(`../dist/test/${k}.pdf`, import.meta.url), Buffer.from(doc.output("arraybuffer")));
+    console.log(`ok  ${k.padEnd(8)} filo ${(D.tot / 100).toFixed(2)} m · ${D.count} ${D.count > 1 ? "sagome" : "sagoma"} · PDF ${pages} pagine`);
+    continue;
+  }
   assert.ok(D.ok, `${k}: la forma di partenza deve essere valida (${D.warn.join("; ")})`);
   assert.equal(D.warn.length, 0, `${k}: nessun avviso atteso, trovati: ${D.warn.join("; ")}`);
   assert.ok(D.LV > 50 && D.LV < 200, `${k}: lunghezza anello laterale plausibile (${D.LV})`);
@@ -75,6 +94,15 @@ const Db = RC.derive(conBuco);
 assert.ok(Db.ok && Db.warn.some(w => w.includes("vecchio formato")), "avviso per l'anello non convertibile");
 assert.ok(Db.rings.length === pr.pieces.corpo.rings.length, "gli altri anelli restano");
 console.log("ok  pezzo singolo e anello non convertibile");
+
+// un progetto salvato prima delle corna (6 pezzi) si apre ancora; le corna mancanti si prendono da quelle di partenza
+const seiPezzi = JSON.parse(JSON.stringify(pr)); ["corna", "orecchie", "coda"].forEach(k => delete seiPezzi.pieces[k]);
+const m6 = RC.migrate(seiPezzi);
+assert.ok(m6 && !m6.pieces.corna && RC.derive(m6.pieces.corpo).ok, "progetto a 6 pezzi aperto");
+// una sagoma senza i campi nuovi prende i valori di partenza
+const nuda = RC.migrate({ type: "orecchie", name: "Orecchie", v: [[0, 0], [3, 2], [6, 0], [3, -1]] });
+assert.equal(nuda.cur, "orecchie"); assert.ok(RC.derive(nuda.pieces.orecchie).ok && nuda.pieces.orecchie.pair === true, "sagoma senza campi nuovi");
+console.log("ok  progetti senza corna, orecchie e coda");
 
 // corpo ingrandito: gli anelli più grandi di un foglio vanno su più fogli, senza uscire dal bordo
 const grande = RC.defaultProject().pieces.corpo, K = 1.4;   // anelli ancora nel formato {s, a}

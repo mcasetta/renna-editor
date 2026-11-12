@@ -43,3 +43,13 @@ Decisione 2026-10-21 (sessione 2) - idee valutate e scartate dall'utente:
 - Compatibilita': il progetto ha il campo lati: "animale". Se manca, RC.migrate scambia i dati AS<->AD e PS<->PD
   (e i nomi se erano quelli di partenza), cosi' la renna salvata resta identica e prende i nomi giusti. Vale anche per
   i punti salvati e il progetto in localStorage. Riaprire un progetto gia' convertito non lo scambia di nuovo.
+
+--- Corna, orecchie e coda (sessione 4, 2026-11-12) ---
+- Non sono pezzi "a croce" (troppo sottili): sono sagome piatte, un solo anello chiuso, come nelle renne in filo commerciali.
+  Decisione approvata dall'utente: corna = contorno chiuso con i rami; coda piatta e verticale.
+- Si disegnano nella vista di lato nella loro posizione (apertura e rotazione 0) + punto di attacco (pivot) dove si legano.
+- Messa in 3D (flatWorld): attorno al pivot prima apertura `open` (attorno all'asse avanti-dietro: la "V" vista da davanti),
+  poi rotazione `turn` attorno alla verticale; il gemello destro e' lo specchio in z. Il pivot sta a z = +/- zoff.
+- Corna e orecchie: pair = true, nel PDF una sola sagoma con "2 pezzi uguali", il filo totale conta 2 volte.
+- Il filo comincia nel punto del profilo piu' vicino al pivot (la giunzione resta dove si lega).
+- Vista 3D: punto guardato e scala iniziali alzati (TGT0 y 54, base3 su 112 cm di altezza) perche' le corna arrivano a ~108 cm.

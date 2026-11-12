@@ -73,3 +73,16 @@ Sessione 3 (continua):
 - Sinistra/destra ora dal punto di vista della renna (z positivo = fianco sinistro); migrazione dei progetti vecchi con
   RC.swapSides (scambia i nomi delle zampe, non la forma); nuovo test. projects/renna_leroymerlin.json convertito.
 File modificati: index.html, src/core.js, src/app.js, test/core.test.mjs, projects/renna_leroymerlin.json, CLAUDE.md, docs/*.
+
+--- Sessione 4 - 2026-11-12 ---
+Obiettivo: aggiungere corna, orecchie e coda (il corpo l'utente l'ha gia' costruito).
+Attivita':
+- Piano proposto e approvato: sagome piatte (un anello chiuso) con punto di attacco, apertura e rotazione.
+- core.js: TYPES corna/orecchie/coda (flat), normPiece, deriveFlat, flatWorld, forme di partenza (flatDefaults),
+  makePdf per le sagome (riepilogo con montaggio, sagoma 1:1 su fogli con ATTACCO), migrate di un singolo pezzo piatto.
+- app.js / index.html: 3 schede nuove, punto di attacco trascinabile, righe Apertura/Rotazione, riquadro secondo anello
+  e anelli nascosti per le sagome, 3D con gemello specchiato, filo totale (x2 per le coppie), vista 3D piu' alta.
+- test: sagome, specchio, attacco fermo, progetti a 6 pezzi. PDF controllati come immagini; pagina provata in Chrome headless.
+Decisioni: vedi ANALISI.txt (sezione sessione 4). Il formato .json si allarga, i file vecchi si aprono come prima.
+Prossimi passi: l'utente prova a mano (vista Fronte per l'apertura); sistemare le sagome sui progetti reali.
+File modificati: index.html, src/core.js, src/app.js, test/core.test.mjs, CLAUDE.md, docs/*.

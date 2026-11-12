@@ -138,18 +138,53 @@
              sLabel: "s (cm dalla cima)", bHint: "zampa vista di fronte, distesa" },
     testa: { loopA: "Anello laterale", loopB: "Anello frontale", bView: "di fronte, disteso", cross: ["base del collo", "naso"],
              sLabel: "s (cm dalla base del collo)", bHint: "collo e testa visti di fronte, distesi" },
+    // sagome piatte: un solo anello chiuso, legato a un altro pezzo nel punto di attacco (pivot)
+    corna:    { flat: true, loopA: "Sagoma delle corna", attach: "testa", what: "corna" },
+    orecchie: { flat: true, loopA: "Sagoma delle orecchie", attach: "testa", what: "orecchio" },
+    coda:     { flat: true, loopA: "Sagoma della coda", attach: "corpo", what: "coda" },
   };
+  const isFlat = (p) => !!(p && TYPES[p.type] && TYPES[p.type].flat);
 
   // ---------------------------------------------------------- derivazione
   function normPiece(p) {
+    if (isFlat(p)) {
+      if (!Array.isArray(p.pivot)) p.pivot = p.v[0].slice();
+      ["zoff", "open", "turn"].forEach(k => { if (typeof p[k] !== "number") p[k] = 0; });
+      if (typeof p.pair !== "boolean") p.pair = p.type !== "coda";
+      return p;
+    }
     p.rings = (p.rings || []).map(r => { if (typeof r === "number") return { s: r, a: 0 }; if (r.p1 && r.p2) return r; if (r.s == null && r.x != null) r.s = +r.x; r.s = +r.s; r.a = +(r.a || 0); delete r.x; return r; });
     if (typeof p.n !== "number") p.n = 2.3;
     if (typeof p.zoff !== "number") p.zoff = 0;
     if (!p.type) p.type = "corpo";
     return p;
   }
+  // posizione 3D di un punto (x, y) della sagoma piatta; sg = +1 lato sinistro (z positivo), -1 il gemello destro.
+  // Prima si inclina in fuori di `open` gradi attorno all'asse avanti-dietro che passa per il punto di attacco
+  // (la "V" vista da davanti), poi si ruota di `turn` gradi attorno alla verticale (vista dall'alto, + = punta del muso in fuori).
+  function flatWorld(st, x, y, sg) {
+    const dx = x - st.pivot[0], dy = y - st.pivot[1];
+    const o = st.open * Math.PI / 180, t = st.turn * Math.PI / 180;
+    const y1 = dy * Math.cos(o), z1 = dy * Math.sin(o);
+    const x2 = dx * Math.cos(t) + z1 * Math.sin(t), z2 = z1 * Math.cos(t) - dx * Math.sin(t);
+    return [st.pivot[0] + x2, st.pivot[1] + y1, sg * (Math.abs(st.zoff) + z2)];
+  }
+  function deriveFlat(st) {
+    const ty = TYPES[st.type], warn = [];
+    if (st.v.length < 3) return { V: [], flat: true, ok: false, warn: ["Servono almeno 3 punti."], ty, rings: [] };
+    let V = catmull(st.v, true);
+    // il filo comincia nel punto più vicino all'attacco: la giunzione resta dove si lega
+    let best = 0, bd = 1e9;
+    for (let i = 0; i < V.length - 1; i++) { const d = Math.hypot(V[i][0] - st.pivot[0], V[i][1] - st.pivot[1]); if (d < bd) { bd = d; best = i; } }
+    V = rotateTo(V, best);
+    if (bd > 1.5) warn.push(`Il punto di attacco (quadratino) è a ${bd.toFixed(1)} cm dal filo: avvicinalo, è lì che la sagoma si lega a${ty.attach === "testa" ? "lla testa" : "l corpo"}.`);
+    const LV = length(V), count = st.pair ? 2 : 1;
+    return { V, flat: true, ok: true, warn, ty, rings: [], bends: [], LV, count, tot: (LV + 5) * count,
+             sides: st.pair ? [1, -1] : [1], toWorld: (x, y, sg) => flatWorld(st, x, y, sg) };
+  }
   function derive(st) {
     normPiece(st);
+    if (isFlat(st)) return deriveFlat(st);
     const warn = [], ty = TYPES[st.type] || TYPES.corpo;
     let V = catmull(st.v, true);
     const ax = axisInfo(st.axis);
@@ -237,7 +272,7 @@
   // l'inclinazione segue quella degli anelli veri vicini. Ritorna una griglia di punti 3D:
   // rows[i][k] = punto k (su M) dell'anello i; la prima e l'ultima riga sono i due incroci.
   function skin(st, D, step, M) {
-    if (!D || !D.ok) return null;
+    if (!D || !D.ok || D.flat) return null;
     step = step || 1.2; M = M || 36;
     const e = 2 / st.n, R = D.rings, z0 = st.zoff;
     const angAt = (s) => {
@@ -304,6 +339,18 @@
     pr.lati = "animale";
     return pr;
   }
+  // corna, orecchie e coda di partenza, appoggiate alla testa e al corpo di partenza (muso a sinistra)
+  function flatDefaults() {
+    return {
+      corna: { name: "Corna", type: "corna", pair: true, zoff: 3, open: 20, turn: 0, pivot: [16.5, 77.6],
+        v: [[15, 78], [16.8, 85], [11, 93], [18.2, 88.2], [20.8, 93.6], [19, 103.5], [23.2, 95.2], [26.8, 99.8],
+            [29, 108.5], [29.5, 101], [35, 102.5], [33, 100.4], [28, 97.6], [23, 92.2], [19.8, 85.6], [18.2, 78]] },
+      orecchie: { name: "Orecchie", type: "orecchie", pair: true, zoff: 3.5, open: 50, turn: 20, pivot: [20.3, 74.6],
+        v: [[19.4, 75.2], [22, 77.2], [26, 79.4], [29.5, 80.2], [27.6, 77.2], [23.6, 74.6], [20.6, 73.8]] },
+      coda: { name: "Coda", type: "coda", pair: false, zoff: 0, open: 0, turn: 0, pivot: [67.7, 49.8],
+        v: [[67.2, 50.8], [69.6, 53.6], [72.6, 55.2], [74.2, 53.2], [72.2, 50.4], [69.2, 48.8]] },
+    };
+  }
   function defaultProjectOld() {
     const F = [3.4, 3.2, 2.5, 2.0, 1.8, 1.7, 1.9], Hh = [4.4, 4.2, 3.2, 2.3, 1.9, 1.7, 1.9];
     const RF = [0.12, 0.27, 0.42, 0.57, 0.72, 0.87];
@@ -325,11 +372,12 @@
           axis: [[27.6, 42.5], [21.6, 60], [16.8, 70.6], [6, 71.6], [-2, 71.2]],
           top: [[1.5, 6.2], [8, 5.8], [16, 4.8], [22, 4.3], [28.5, 4.6], [33, 3.8], [37, 2.8], [40, 1.8]],
           rings: [4, 10, 15.5, 20.5, 31, 35, 38.5].map(s => ({ s, a: 0 })) },
+        ...flatDefaults(),
       },
     };
   }
   const defaultProject = () => swapSides(defaultProjectOld());
-  const ORDER = ["corpo", "testa", "AS", "AD", "PS", "PD"];
+  const ORDER = ["corpo", "testa", "AS", "AD", "PS", "PD", "corna", "orecchie", "coda"];
   // converte un salvataggio vecchio (solo corpo, coordinate x) nel formato a pezzi
   function migrate(o) {
     if (o && o.pieces) { Object.values(o.pieces).forEach(normPiece); if (o.lati !== "animale") swapSides(o); return o; }
@@ -338,8 +386,8 @@
       pr.pieces.corpo = bodyFromX(o.v, o.yh, o.top, o.rings, o.n);
       return pr;
     }
-    if (o && Array.isArray(o.v) && Array.isArray(o.axis)) {   // un singolo pezzo nuovo formato
-      const pr = defaultProject(); const k = o.type === "zampa" ? (o.key || "AS") : o.type === "testa" ? "testa" : "corpo";
+    if (o && Array.isArray(o.v) && (Array.isArray(o.axis) || isFlat(o))) {   // un singolo pezzo nuovo formato
+      const pr = defaultProject(); const k = o.type === "zampa" ? (o.key || "AS") : o.type === "testa" ? "testa" : isFlat(o) ? o.type : "corpo";
       pr.pieces[k] = normPiece(o); pr.cur = k; return pr;
     }
     return null;
@@ -516,6 +564,49 @@
       return plan.tiles.length;
     }
 
+    if (D.flat) {   // ---------------- sagoma piatta: riepilogo + una sola sagoma
+      const nT = planTiles(D.V).tiles.length, cnt = D.count, att = ty.attach === "testa" ? "alla testa" : "al corpo";
+      newPage(false);
+      header(`Renna in fil di ferro - ${title}`, "Sagoma 1:1 su A4 - stampa al 100% (\"dimensioni effettive\")");
+      const xs = D.V.map(p => p[0]), ys = D.V.map(p => p[1]);
+      const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+      const s = Math.min(0.5, 110 / ((maxy - miny) * MM), 190 / ((maxx - minx) * MM));
+      font(9, true); textc("ink"); doc.text("Di lato (muso a sinistra)", PM, PM + PHEAD + 6);
+      T = { x0: minx, y0: miny, ox: PM + 4, oy: PM + PHEAD + 12 + (maxy - miny) * MM * s };
+      const XS = (x) => T.ox + (x - T.x0) * MM * s, YS = (y) => T.oy - (y - T.y0) * MM * s;
+      stroke("wire"); doc.setLineWidth(0.6);
+      const d = []; for (let i = 1; i < D.V.length; i++) d.push([(D.V[i][0] - D.V[i - 1][0]) * MM * s, -(D.V[i][1] - D.V[i - 1][1]) * MM * s]);
+      doc.lines(d, XS(D.V[0][0]), YS(D.V[0][1]), [1, 1], "S", false);
+      stroke("purple"); doc.setFillColor(255, 255, 255); doc.setLineWidth(0.4); doc.rect(XS(st.pivot[0]) - 1.2, YS(st.pivot[1]) - 1.2, 2.4, 2.4, "FD");
+      font(7, true); textc("purple"); doc.text("ATTACCO", XS(st.pivot[0]) + 2, YS(st.pivot[1]) + 3.5);
+      let y = T.oy + 12;
+      font(9.5, true); textc("ink"); doc.text(`I pezzi: ${title}`, PM, y); y += 5;
+      const cols = [PM, PM + 70, PM + 88, PM + 120, PM + 172];
+      font(7.6, true); ["Pezzo", "Quanti", "Filo (cm)", "Misure", "Pagine"].forEach((t, i) => doc.text(t, cols[i], y));
+      font(7.6, false); y += 4.2;
+      [ty.loopA, String(cnt), `${D.LV.toFixed(0)} + 5` + (cnt > 1 ? " (ognuno)" : ""), `${(maxy - miny).toFixed(0)} alto x ${(maxx - minx).toFixed(0)}`, `2-${1 + nT}`]
+        .forEach((t, i) => doc.text(t, cols[i], y));
+      y += 7; font(8, true);
+      doc.text(`Totale filo grosso: circa ${(D.tot / 100).toFixed(2)} m (+10% di scorta)`, PM, y);
+      y += 8; font(9, true); doc.text("Montaggio", PM, y); y += 4.5; font(8, false);
+      const pos = [];
+      if (Math.abs(st.zoff) >= 0.05) pos.push(`a ${Math.abs(st.zoff).toFixed(1)} cm dal centro della renna verso il fianco`);
+      if (Math.abs(st.open) >= 0.5) pos.push(`aperta di ${Math.abs(st.open).toFixed(0)}° ${st.open > 0 ? "verso l'esterno" : "verso l'interno"} (guardando la renna da davanti)`);
+      if (Math.abs(st.turn) >= 0.5) pos.push(`girata di ${Math.abs(st.turn).toFixed(0)}° con la parte davanti ${st.turn > 0 ? "verso l'esterno" : "verso l'interno"} (guardando la renna dall'alto)`);
+      const steps = [
+        `1. Stampa al 100% e controlla la barra da 5 cm.${nT > 1 ? " Unisci i fogli sovrapponendo 1 cm (zona grigia) e facendo combaciare la griglia." : ""}`,
+        "2. Piega il filo partendo dal punto verde INIZIO e seguendo la freccia; le tacche ogni 10 cm ti dicono quanto filo hai gia' usato. Chiudi sovrapponendo i capi 3-4 cm e legando: la giunzione resta vicino al punto di attacco.",
+        ...(cnt > 1 ? [`3. Fai ${cnt} pezzi sulla stessa sagoma: quello per il fianco destro e' lo stesso, girato (specchiato).`] : []),
+        `${cnt > 1 ? 4 : 3}. Lega la sagoma ${att} nel punto viola ATTACCO` + (pos.length ? ", " + pos.join(", ") + "." : ", al centro, dritta nel piano della renna."),
+      ];
+      steps.forEach(t => { doc.splitTextToSize(t, 194).forEach(l => { doc.text(l, PM, y); y += 3.8; }); y += 1; });
+      footer();
+      tiledPiece(ty.loopA, `${title} - vista di lato - 1:1 - ${cnt} ${cnt > 1 ? "pezzi uguali" : "pezzo"} - filo ${D.LV.toFixed(0)} + 5 cm - muso a sinistra`, D.V, "wire", (layer) => {
+        if (layer === "over") marker(st.pivot[0], st.pivot[1], "purple", `ATTACCO ${att}`, 2.5, 2, true);
+      }, "x", "y");
+      return { doc, pages: page - 1, D, layout };
+    }
+
     const R = D.rings;
     const pv = planTiles(D.V).tiles.length, ph = planTiles(D.H).tiles.length;
     const P_V = 2, P_H = P_V + pv, P_R = P_H + ph;
@@ -686,6 +777,6 @@
   }
 
   root.RennaCore = { TYPES, ORDER, catmull, length, cut, derive, makePdf, planTiles, normPiece, defaultProject, migrate,
-                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA, skin, swapSides };
+                     axisInfo, axisAt, axisProject, nearestOnCurve, ringFromSA, skin, swapSides, isFlat, flatWorld };
   if (typeof module !== "undefined") module.exports = root.RennaCore;
 })(typeof window !== "undefined" ? window : globalThis);
