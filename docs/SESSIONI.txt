@@ -96,3 +96,5 @@ Sessione 4 (continua):
 - Corretto: il pezzo mosso dalle frecce cambiava al solo passaggio del mouse. File: src/app.js, index.html, docs/*.
 - Grandezza dei pezzi: scalePiece/scaleCenter/grow in app.js, riga Grandezza nel pannello, Ctrl + ↑ / ↓. Provato in
   Chrome headless (zampa a 80% resta a terra, senza avvisi; corna attorno all'attacco; Annulla). File: src/app.js, index.html, src/style.css, docs/*.
+Chiusura sessione 4: push su GitHub di tutte le modifiche (corna/orecchie/coda, pelle, sposta con frecce, rotazione, grandezza).
+Prossimi passi: sistemare corna/orecchie/coda sui progetti reali; eventuale rotazione delle zampe attorno all'anca.
