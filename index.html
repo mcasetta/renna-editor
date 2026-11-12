@@ -60,6 +60,7 @@
         i due pallini rossi sul profilo sono i <b>punti di contatto</b>: trascinali uno alla volta per inclinare l'anello · la linea blu tratteggiata con i quadratini è l'<b>asse della croce</b>: sposta i quadratini per piegarla ·
         <b>rotellina</b> per avvicinare/allontanare, trascina un punto vuoto per spostare la vista ·
         <b>✥ Sposta pezzo</b> (o Maiusc + trascina) per spostare tutto un pezzo rispetto agli altri; con «Sposta pezzo» attivo anche le <b>frecce</b> (Maiusc + frecce = 5 cm) ·
+        con «Sposta pezzo» Ctrl + ↑ / ↓ <b>ingrandisce o rimpicciolisce</b> il pezzo ·
         <b>↺ ↻</b>, Ctrl + trascina o Ctrl + ← / → (con «Sposta pezzo») per <b>ruotare</b> il pezzo attorno al suo centro (corna, orecchie e coda attorno al punto di attacco).</p>
     </div>
 
@@ -97,6 +98,12 @@
           <span class="lbl">Rotazione</span>
           <span><input id="turn" type="number" step="5" min="-90" max="90"> °</span>
           <span class="help">Guardando la renna dall'alto: quanto la parte davanti della sagoma gira verso l'esterno.</span>
+        </div>
+        <div class="prow" id="rowSize">
+          <span class="lbl">Grandezza del pezzo</span>
+          <span class="sizectl"><button type="button" id="sizeDn" title="Rimpicciolisci del 2% (Maiusc: 10%)">−</button><input id="sizeH" type="number" step="0.5" min="1" aria-label="Altezza del pezzo in cm"> cm<button type="button" id="sizeUp" title="Ingrandisci del 2% (Maiusc: 10%)">+</button></span>
+          <span class="help"><span id="sizeInfo"></span>. Stessa forma, più piccola o più grande: scrivi l'altezza che vuoi o usa − / + (2%, Maiusc 10%).
+            Resta fermo il punto di attacco (corna, orecchie, coda), lo zoccolo (zampe) o il centro (corpo, testa).</span>
         </div>
         <div class="prow" id="rowN">
           <span class="lbl">Forma degli anelli</span>

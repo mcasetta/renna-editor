@@ -200,10 +200,10 @@
   // "Sposta pezzo" con la tastiera: muove l'ultimo pezzo trascinato, altrimenti quello della scheda aperta.
   // Le pressioni ravvicinate dello stesso pezzo sono un solo passo di Annulla; si riparte sempre dalla copia
   // iniziale (o), così rotazioni ripetute non accumulano errori di arrotondamento.
-  function keyRun(kind) {
-    const k = moveTarget(), pc = proj.pieces[k], now = Date.now();
+  function keyRun(kind, key) {
+    const k = key || moveTarget(), pc = proj.pieces[k], now = Date.now();
     if (!nudgeRun || nudgeRun.k !== k || nudgeRun.kind !== kind || now - nudgeRun.t > 1500) {
-      pushHist(); nudgeRun = { k, kind, o: clone(pc), c: rotCenter(pc), dx: 0, dy: 0, deg: 0 };
+      pushHist(); nudgeRun = { k, kind, o: clone(pc), c: kind === "scale" ? scaleCenter(pc) : rotCenter(pc), dx: 0, dy: 0, deg: 0, f: 1 };
     }
     nudgeRun.t = now; return nudgeRun;
   }
@@ -211,6 +211,26 @@
     const r = keyRun("move"), pc = proj.pieces[r.k];
     r.dx += dx; r.dy += dy; shiftPiece(pc, r.o, r.dx, r.dy); afterMove(r.k);
     $("selSide").textContent = `${pc.name}: spostato di ${r.dx.toFixed(1)} cm in orizzontale e ${r.dy.toFixed(1)} cm in verticale (frecce: ${$("snap").checked ? "0,5" : "0,1"} cm, Maiusc + frecce: 5 cm).`;
+  }
+  // ingrandimento/rimpicciolimento: stessa forma, misure moltiplicate per f. Scala anche il secondo anello (s e w),
+  // che è misurato lungo l'asse a partire dal primo incrocio. La distanza dal centro (zoff) non cambia.
+  function scalePiece(pc, o, c, f) {
+    mapPiece(pc, o, (p) => [c[0] + (p[0] - c[0]) * f, c[1] + (p[1] - c[1]) * f]);
+    if (o.top) pc.top = o.top.map(q => [+(q[0] * f).toFixed(2), +(q[1] * f).toFixed(2)]);
+  }
+  // punto fermo: attacco per le sagome piatte, zoccolo (in basso al centro) per le zampe, così restano a terra; centro per gli altri
+  function scaleCenter(pc) {
+    if (pc.pivot) return pc.pivot.slice();
+    const c = rotCenter(pc);
+    if (pc.type === "zampa") c[1] = Math.min(...pc.v.map(p => p[1]));
+    return c;
+  }
+  const sizeOf = (pc, d) => { const P = d && d.ok && d.V ? d.V : pc.v, xs = P.map(p => p[0]), ys = P.map(p => p[1]); return [Math.max(...ys) - Math.min(...ys), Math.max(...xs) - Math.min(...xs)]; };
+  function grow(f, key) {
+    const r = keyRun("scale", key), pc = proj.pieces[r.k];
+    r.f *= f; scalePiece(pc, r.o, r.c, r.f); afterMove(r.k);
+    const [h, l] = sizeOf(pc, r.k === proj.cur ? D : others[r.k]);
+    $("selSide").textContent = `${pc.name}: ${r.f >= 1 ? "ingrandito" : "rimpicciolito"} al ${(r.f * 100).toFixed(0)}% - ora alto ${h.toFixed(1)} cm e lungo ${l.toFixed(1)} cm (fermo: ${pc.pivot ? "punto di attacco" : pc.type === "zampa" ? "zoccolo" : "centro"}).`;
   }
   const degTxt = (d) => `${Math.abs(d).toFixed(Number.isInteger(+d.toFixed(1)) ? 0 : 1)}° ${d >= 0 ? "in senso antiorario" : "in senso orario"}`;
   function turn(deg) {
@@ -611,6 +631,7 @@
     $("rowZhelp").textContent = fl ? "Quanto il punto di attacco sta verso il fianco rispetto al centro della renna (vale per tutte e due le sagome)." : "Quanto il piano della zampa sta verso il suo fianco rispetto al centro della renna.";
     $("rowOpen").hidden = $("rowTurn").hidden = !fl;
     $("rowN").hidden = $("ringsBox").hidden = fl;
+    { const [h, l] = sizeOf(st, D); $("sizeH").value = h.toFixed(1); $("sizeInfo").textContent = `alto ${h.toFixed(1)} × lungo ${l.toFixed(1)} cm`; }
     if (fl) { $("open").value = st.open; $("turn").value = st.turn; }
     else { $("n").value = st.n; $("nVal").textContent = st.n.toFixed(2); }
     const rs = $("rings"); rs.innerHTML = "";
@@ -687,11 +708,19 @@
     else { const f = act === "in" ? 1.3 : 1 / 1.3; if (v) v.zoomAt(W / 2, H / 2, f); else zoom3At(W / 2, H / 2, f); }
   }));
   // pulsanti ↺ ↻: 1° (con Maiusc 5°) sul pezzo che si muove con la tastiera
+  // grandezza del pezzo aperto: − / + del 2% (Maiusc 10%), oppure si scrive l'altezza voluta
+  $("sizeDn").onclick = (e) => grow(e.shiftKey ? 1 / 1.1 : 1 / 1.02, proj.cur);
+  $("sizeUp").onclick = (e) => grow(e.shiftKey ? 1.1 : 1.02, proj.cur);
+  $("sizeH").onchange = (e) => {
+    const v = parseFloat(e.target.value), h = sizeOf(st, D)[0];
+    if (!isFinite(v) || v <= 0.5 || !h) { renderPanel(); return; }
+    nudgeRun = null; grow(v / h, proj.cur); nudgeRun = null;
+  };
   $("rotL").onclick = (e) => turn(e.shiftKey ? 5 : 1);
   $("rotR").onclick = (e) => turn(e.shiftKey ? -5 : -1);
   $("moveBtn").onclick = () => {
     moveMode = !moveMode; $("moveBtn").setAttribute("aria-pressed", String(moveMode)); lastMoved = null; nudgeRun = null; side.draw();
-    $("selSide").textContent = moveMode ? `Trascina un pezzo (anche uno grigio) per spostarlo, Ctrl + trascina per ruotarlo; con la tastiera: frecce per spostare «${st.name}» (Maiusc: 5 cm), Ctrl + ← / → per ruotarlo (Maiusc: 5°). Ripremi «Sposta pezzo» per tornare a modificare i punti.` : "Nessun punto selezionato.";
+    $("selSide").textContent = moveMode ? `Trascina un pezzo (anche uno grigio) per spostarlo, Ctrl + trascina per ruotarlo; con la tastiera: frecce per spostare «${st.name}» (Maiusc: 5 cm), Ctrl + ← / → per ruotarlo (Maiusc: 5°), Ctrl + ↑ / ↓ per ingrandirlo o rimpicciolirlo. Ripremi «Sposta pezzo» per tornare a modificare i punti.` : "Nessun punto selezionato.";
   };
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && document.querySelector(".board.max")) { setMax(null); return; }
@@ -701,6 +730,10 @@
     // Ctrl + ← / → ruota il pezzo (1°, con Maiusc 5°)
     if (moveMode && dir && dir[0] && (e.ctrlKey || e.metaKey) && !e.altKey && !over3 && document.activeElement !== c3 && !typing) {
       e.preventDefault(); turn(-dir[0] * (e.shiftKey ? 5 : 1)); return;
+    }
+    // Ctrl + ↑ / ↓ ingrandisce / rimpicciolisce il pezzo (2%, con Maiusc 10%)
+    if (moveMode && dir && dir[1] && (e.ctrlKey || e.metaKey) && !e.altKey && !over3 && document.activeElement !== c3 && !typing) {
+      e.preventDefault(); const f = e.shiftKey ? 1.1 : 1.02; grow(dir[1] > 0 ? f : 1 / f); return;
     }
     if (moveMode && dir && !e.ctrlKey && !e.metaKey && !e.altKey && !over3 && document.activeElement !== c3 && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
       e.preventDefault(); const k = e.shiftKey ? 5 : $("snap").checked ? 0.5 : 0.1; nudge(dir[0] * k, dir[1] * k); return;

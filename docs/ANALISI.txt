@@ -59,3 +59,7 @@ Decisione 2026-10-21 (sessione 2) - idee valutate e scartate dall'utente:
 - Rotazione di un pezzo (sessione 4): rigida nel piano di lato (profilo, asse, contatti degli anelli, attacco), quindi
   il secondo anello (s, w) resta valido. Centro: punto di attacco per le sagome piatte (restano legate), centro del
   riquadro del profilo per gli altri pezzi. Nessun campo nuovo nel .json: si ruotano i punti.
+- Grandezza di un pezzo (sessione 4): si moltiplicano tutte le misure per f attorno a un punto fermo: profilo, asse,
+  contatti degli anelli e anche il secondo anello (s, w), cosi' la forma 3D resta uguale. zoff non cambia (e' una posizione).
+  Punto fermo: attacco per le sagome, zoccolo (in basso al centro) per le zampe che cosi' restano a terra, centro per gli altri.
+  L'altezza mostrata e' quella della curva vera (D.V), non dei punti di controllo.

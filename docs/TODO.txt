@@ -70,3 +70,5 @@ Richieste utente (sessione 4, 2026-11-12):
 [DONE] Ruotare un pezzo intero (sessione 4): pulsanti ↺ ↻ (1°, Maiusc 5°), con Sposta pezzo anche Ctrl + trascina e
        Ctrl + ← / →. Centro: punto di attacco per corna/orecchie/coda, centro del profilo per gli altri (mirino arancione).
 [RISOLTO] Passando col mouse sopra un pezzo grigio, le frecce di Sposta pezzo cambiavano pezzo (grab chiamato anche al passaggio).
+[DONE] Grandezza di un pezzo (sessione 4): riga Grandezza nel pannello (altezza in cm da scrivere, − / + 2%, Maiusc 10%),
+       con Sposta pezzo anche Ctrl + ↑ / ↓. Fermi: attacco (sagome), zoccolo (zampe), centro (corpo, testa).
